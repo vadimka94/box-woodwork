@@ -1,0 +1,367 @@
+:root{
+  --ink:#0C0D10; --panel:#16181C; --raise:#23262C;
+  --line:#2B2F36; --line-soft:#212429;
+  --bone:#F4F2EE; --steel:#AFB6C0; --dim:#8A929C;
+  --bronze:#C9924F; --bronze-lt:#E9C68F; --bronze-deep:#7E5027;
+  --go:#3FA96A; --work:#E08A3C; --stop:#D8503F; --idle:#2E333A;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --display:'Frank Ruhl Libre','Times New Roman',serif;
+  --body:'Heebo','Rubik','Arial Hebrew',system-ui,sans-serif;
+  --r:16px; --rs:11px;
+}
+html{background:var(--ink);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;background:var(--ink);color:var(--bone);
+  font-family:var(--body);font-weight:300;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{width:100%;background:#101216;color:var(--bone);border:1px solid var(--line);
+  border-radius:var(--rs);padding:13px 14px;font-size:15px;font-family:inherit;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--bronze)}
+:focus-visible{outline:2px solid var(--bronze);outline-offset:3px}
+
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.panel{border:1px solid var(--line);border-radius:var(--r);padding:22px;
+  background:linear-gradient(180deg,#181A1E,#111317);box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:.08em;padding:12px 18px;border-radius:var(--rs);
+  border:1px solid var(--line);background:linear-gradient(180deg,var(--raise),#15171A);transition:.16s}
+.btn:hover{border-color:var(--bronze);color:var(--bronze-lt)}
+.btn:disabled{opacity:.32;cursor:not-allowed}
+.btn-primary{border-color:#96632F;color:#141007;font-weight:600;
+  background:linear-gradient(180deg,#EFC684,#C9924F 58%,#A2712F)}
+.btn-go{border-color:rgba(63,169,106,.5);color:#7FD4A0;background:rgba(63,169,106,.12)}
+.btn-work{border-color:rgba(224,138,60,.5);color:#F0B072;background:rgba(224,138,60,.12)}
+.btn-stop{border-color:rgba(216,80,63,.5);color:#F0897A;background:rgba(216,80,63,.12)}
+.btn-big{width:100%;min-height:58px;font-size:14px;text-align:center}
+.chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:5px 12px;
+  border-radius:99px;border:1px solid var(--line);color:var(--steel);white-space:nowrap}
+.chip.go{border-color:rgba(63,169,106,.45);color:#7FD4A0;background:rgba(63,169,106,.1)}
+.chip.work{border-color:rgba(224,138,60,.45);color:#F0B072;background:rgba(224,138,60,.1)}
+.chip.stop{border-color:rgba(216,80,63,.5);color:#F0897A;background:rgba(216,80,63,.12)}
+.chip.gold{border-color:var(--bronze-deep);color:var(--bronze-lt);background:rgba(201,146,79,.1)}
+
+/* stage rail */
+.rail{display:flex;gap:4px;align-items:flex-end}
+.rail .seg{flex:1;min-width:0}
+.rail .seg .bar{height:8px;border-radius:99px;background:var(--idle)}
+.rail .seg .tick{font-family:var(--mono);font-size:8px;color:var(--dim);margin-bottom:7px;
+  white-space:nowrap;overflow:hidden}
+.blink{animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* shell */
+.shell{display:grid;grid-template-columns:1fr 236px;min-height:100dvh}
+.side{border-inline-start:1px solid var(--line);background:#0E1013;padding:24px 0;
+  position:sticky;top:0;height:100dvh;display:flex;flex-direction:column}
+.nav-item{display:block;width:calc(100% - 20px);margin:0 10px;padding:12px 14px;font-size:14px;
+  color:var(--steel);border-radius:12px;text-decoration:none;transition:.16s}
+.nav-item:hover{color:var(--bone);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--bronze-lt);background:rgba(201,146,79,.12);
+  box-shadow:inset 0 0 0 1px rgba(201,146,79,.28)}
+main{padding:28px clamp(16px,3vw,40px) 80px;min-width:0}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(23px,3vw,31px);margin:6px 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px}
+.lockbar{padding:13px 15px;border-radius:12px;font-size:13px;color:var(--bronze-lt);
+  background:rgba(201,146,79,.1);border:1px dashed rgba(201,146,79,.4)}
+.sig{margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.025);
+  border:1px solid var(--line-soft);font-family:var(--mono);font-size:10px;color:var(--steel)}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;overflow-x:auto;padding:0;
+    border-inline-start:0;border-bottom:1px solid var(--line);z-index:30}
+  .nav-item{white-space:nowrap;margin:8px 4px;border-radius:99px;width:auto}
+  main{padding:20px 15px 90px}
+  .grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+/* ---------- readable section headings ----------
+   The small mono labels were 10px in a near-transparent grey. On a shop
+   floor screen, and for anyone over forty, that is unreadable. These rules
+   use !important on purpose: the headings are set with inline styles in the
+   pages, and this is the one place to fix all of them at once. */
+.panel h4,
+h4.mono {
+  font-size: 13px !important;
+  letter-spacing: .1em !important;
+  color: var(--steel) !important;
+  font-weight: 400 !important;
+  margin-bottom: 16px !important;
+}
+
+/* the standalone labels above a group of cards ("כל הפרויקטים", "פריטים בייצור") */
+main > .mono {
+  font-size: 13px !important;
+  letter-spacing: .12em !important;
+  color: var(--steel) !important;
+}
+
+/* project code above the title stays gold, just larger */
+main > .mono:first-child {
+  font-size: 14px !important;
+  color: var(--bronze-lt) !important;
+}
+
+/* stage names and crew lines inside a panel */
+.panel .mono { font-size: 12px; }
+
+/* the small print under a heading */
+label { font-size: 13px !important; color: var(--steel) !important; }
+
+
+/* ============================================================
+   Light working area, dark chrome.
+   The sidebar and the floor screen stay dark — the sidebar is
+   chrome you glance at, and the TV hangs in a workshop where a
+   white screen would glare. Everything you actually read sits
+   on paper. The three status colours are darkened so they still
+   carry on white; the old ones washed out on a light background.
+   ============================================================ */
+main {
+  --ink:#F1EFEA;
+  --panel:#FFFFFF;
+  --raise:#F3F0EA;
+  --line:#DCD7CE;
+  --line-soft:#E9E5DD;
+  --bone:#1D1F23;
+  --steel:#5E646D;
+  --dim:#8A9099;
+  --bronze:#9A6B28;
+  --bronze-lt:#7E5620;
+  --bronze-deep:#C9924F;
+  --go:#2E8355;
+  --work:#B96A18;
+  --stop:#B03B2C;
+  --idle:#D8D3CA;
+
+  background:#F1EFEA;
+  color:var(--bone);
+}
+
+main .panel {
+  background:#FFFFFF !important;
+  border-color:var(--line);
+  box-shadow:0 6px 18px rgba(40,34,24,.07) !important;
+}
+
+main .btn {
+  background:linear-gradient(180deg,#FFFFFF,#F1EDE6) !important;
+  border-color:var(--line);
+  color:#2A2D33;
+}
+main .btn:hover { border-color:var(--bronze); color:var(--bronze-lt); }
+main .btn-primary {
+  background:linear-gradient(180deg,#E0AE64,#B7802F) !important;
+  border-color:#9A6B28; color:#211703 !important;
+}
+main .btn-go   { background:rgba(46,131,85,.12) !important;  border-color:rgba(46,131,85,.45);  color:#1F6B42 !important; }
+main .btn-work { background:rgba(185,106,24,.12) !important; border-color:rgba(185,106,24,.45); color:#93540F !important; }
+main .btn-stop { background:rgba(176,59,44,.12) !important;  border-color:rgba(176,59,44,.45);  color:#93281B !important; }
+
+main .chip      { border-color:var(--line); color:var(--steel); background:#FBF9F5; }
+main .chip.go   { border-color:rgba(46,131,85,.45);  color:#1F6B42; background:rgba(46,131,85,.1); }
+main .chip.work { border-color:rgba(185,106,24,.45); color:#93540F; background:rgba(185,106,24,.1); }
+main .chip.stop { border-color:rgba(176,59,44,.5);   color:#93281B; background:rgba(176,59,44,.1); }
+main .chip.gold { border-color:rgba(154,107,40,.5);  color:#7E5620; background:rgba(201,146,79,.14); }
+
+main input, main textarea, main select {
+  background:#FFFFFF; color:var(--bone); border-color:var(--line);
+}
+main input::placeholder, main textarea::placeholder { color:#A7ADB5; }
+
+main h1 { color:#17191D; }
+main .panel h4, main h4.mono { color:#6A707A !important; }
+main > .mono { color:#6A707A !important; }
+main > .mono:first-child { color:var(--bronze-lt) !important; }
+main label { color:#5E646D !important; }
+
+main .lockbar { background:rgba(201,146,79,.14); border-color:rgba(154,107,40,.45); color:#7E5620; }
+main .sig { background:#F7F5F1; border-color:var(--line-soft); color:#5E646D; }
+main .rail .seg .bar { box-shadow:inset 0 0 0 1px rgba(0,0,0,.05); }
+
+/* the floor screen keeps the dark palette */
+main .tv-dark {
+  --ink:#0C0D10; --panel:#16181C; --raise:#23262C;
+  --line:#2B2F36; --line-soft:#212429;
+  --bone:#F4F2EE; --steel:#AFB6C0; --dim:#8A929C;
+  --bronze:#C9924F; --bronze-lt:#E9C68F;
+  --go:#3FA96A; --work:#E08A3C; --stop:#D8503F; --idle:#2E333A;
+  color:var(--bone);
+}
+main .tv-dark .panel { background:linear-gradient(180deg,#181A1E,#111317) !important; box-shadow:none !important; }
+main .tv-dark .mono { color:inherit; }
+
+
+/* Links inside the working area must not fall back to the browser's blue and
+   purple. Project titles are links, and "visited" was turning them violet. */
+main a { color: inherit; text-decoration: none; }
+main a:visited { color: inherit; }
+main a h3, main a h5 { color: #17191D; }
+
+/* The floor screen is a link-free dark surface — keep its own colours. */
+main .tv-dark a { color: inherit; }
+
+/* project and item titles */
+main h3, main h5 { color:#17191D; }
+
+/* the ten status bars need a visible edge on white */
+main .rail .seg .bar { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+main .rail .seg .tick { color:#8A9099; }
+
+
+/* The first light palette leaned warm and read as pink next to the bronze.
+   This one is a neutral cool grey — it stays out of the way, and the three
+   status colours are the only warmth on the screen. */
+main {
+  --ink:#F3F4F6;
+  --panel:#FFFFFF;
+  --raise:#EFF1F3;
+  --line:#DCE0E5;
+  --line-soft:#E9ECEF;
+  --bone:#1A1D21;
+  --steel:#5B6470;
+  --dim:#868E9A;
+  background:#F3F4F6;
+}
+main .panel { background:#FFFFFF !important; box-shadow:0 4px 14px rgba(20,26,36,.06) !important; }
+main .btn { background:linear-gradient(180deg,#FFFFFF,#F1F3F5) !important; color:#22262B; }
+main .chip { background:#F7F8FA; }
+main input, main textarea, main select { background:#FFFFFF; }
+main .sig { background:#F5F6F8; }
+
+
+/* ============================================================
+   Action buttons, last word.
+   The generic light-button rule above was written after the coloured
+   ones and quietly overrode them, leaving three near-identical white
+   buttons with a thin tint. These are the controls a carpenter presses
+   with dusty hands on a phone — they have to be unmistakable.
+   ============================================================ */
+main .btn-work,
+main .btn-go,
+main .btn-stop {
+  border-width:2px !important;
+  font-weight:600 !important;
+  font-size:14px !important;
+  letter-spacing:.04em !important;
+}
+
+main .btn-work {
+  background:linear-gradient(180deg,#FDEFDD,#F8E2C6) !important;
+  border-color:#C67A22 !important;
+  color:#7E4710 !important;
+}
+main .btn-work:hover {
+  background:linear-gradient(180deg,#FAE5C9,#F2D5AF) !important;
+  border-color:#A8620F !important;
+}
+
+main .btn-go {
+  background:linear-gradient(180deg,#E4F4EB,#CFEBDC) !important;
+  border-color:#2E8355 !important;
+  color:#175231 !important;
+}
+main .btn-go:hover {
+  background:linear-gradient(180deg,#D3EDE0,#BCE2CE) !important;
+  border-color:#1F6B42 !important;
+}
+
+main .btn-stop {
+  background:linear-gradient(180deg,#FBE7E4,#F6D5D0) !important;
+  border-color:#B03B2C !important;
+  color:#7E2418 !important;
+}
+main .btn-stop:hover {
+  background:linear-gradient(180deg,#F7D9D4,#EFC4BD) !important;
+  border-color:#93281B !important;
+}
+
+/* the gold primary button, same treatment */
+main .btn-primary {
+  border-width:2px !important;
+  border-color:#8F6224 !important;
+  font-weight:700 !important;
+  color:#1E1503 !important;
+  background:linear-gradient(180deg,#E7B96D,#C08B36) !important;
+}
+main .btn-primary:hover {
+  background:linear-gradient(180deg,#F0C782,#CE9942) !important;
+}
+
+/* on a phone these are the whole interface — give them room */
+@media (max-width:900px) {
+  main .btn-work, main .btn-go, main .btn-stop { min-height:60px !important; font-size:15px !important; }
+}
+
+
+/* ============================================================
+   Append the contents of this file to the END of app/globals.css
+   ============================================================ */
+
+/* ---------- phone layout ----------
+   The sidebar was a column that collapsed to a scrolling strip at the top of
+   the page, which meant it scrolled away and the tabs at the bottom were only
+   reachable by dragging the whole page. On a phone the navigation has to be
+   fixed to the bottom of the screen, where a thumb is, and stay there. */
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+    padding-bottom: 76px;                 /* room for the fixed bar */
+  }
+
+  .side {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    top: auto;
+    height: auto;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    background: #0E1013;
+    z-index: 60;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, .35);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .side::-webkit-scrollbar { display: none; }
+
+  .nav-item {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 8px 4px;
+    padding: 12px 16px;
+    border-radius: 99px;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  main { padding: 18px 14px 24px; }
+
+  /* the person's name and sign-out sit at the end of the same strip */
+  .side .whoami {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    border: 0;
+    margin: 0;
+    padding: 0 6px;
+  }
+  .side .whoami button { margin: 0; padding: 14px 16px; white-space: nowrap; }
+}
+
+/* a phone in landscape has almost no height — shrink the bar */
+@media (max-width: 900px) and (orientation: landscape) {
+  .shell { padding-bottom: 60px; }
+  .nav-item { margin: 5px 3px; padding: 9px 14px; font-size: 13px; }
+}
+
+/* the wall screen has no sidebar at all */
+@media (max-width: 900px) {
+  body:has(#tv-root) .side { display: none; }
+}

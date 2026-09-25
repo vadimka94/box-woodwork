@@ -1,0 +1,27 @@
+# תלויות — מותקנות מחדש עם npm install, אין סיבה לשמור אותן
+node_modules/
+
+# תוצרי בנייה
+.next/
+out/
+build/
+
+# סודות — מפתחות Supabase ו-Anthropic. אסור שזה יגיע לגיטהאב.
+.env
+.env.local
+.env*.local
+
+# וורסל
+.vercel
+
+# שאריות
+upd9/
+*.log
+npm-debug.log*
+
+# מערכת הפעלה ועורכים
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

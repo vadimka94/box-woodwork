@@ -1,0 +1,109 @@
+:root{
+  --ink:#0C0D10; --panel:#16181C; --raise:#23262C;
+  --line:#2B2F36; --line-soft:#212429;
+  --bone:#F4F2EE; --steel:#AFB6C0; --dim:#8A929C;
+  --bronze:#C9924F; --bronze-lt:#E9C68F; --bronze-deep:#7E5027;
+  --go:#3FA96A; --work:#E08A3C; --stop:#D8503F; --idle:#2E333A;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --display:'Frank Ruhl Libre','Times New Roman',serif;
+  --body:'Heebo','Rubik','Arial Hebrew',system-ui,sans-serif;
+  --r:16px; --rs:11px;
+}
+html{background:var(--ink);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;background:var(--ink);color:var(--bone);
+  font-family:var(--body);font-weight:300;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{width:100%;background:#101216;color:var(--bone);border:1px solid var(--line);
+  border-radius:var(--rs);padding:13px 14px;font-size:15px;font-family:inherit;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--bronze)}
+:focus-visible{outline:2px solid var(--bronze);outline-offset:3px}
+
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.panel{border:1px solid var(--line);border-radius:var(--r);padding:22px;
+  background:linear-gradient(180deg,#181A1E,#111317);box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:.08em;padding:12px 18px;border-radius:var(--rs);
+  border:1px solid var(--line);background:linear-gradient(180deg,var(--raise),#15171A);transition:.16s}
+.btn:hover{border-color:var(--bronze);color:var(--bronze-lt)}
+.btn:disabled{opacity:.32;cursor:not-allowed}
+.btn-primary{border-color:#96632F;color:#141007;font-weight:600;
+  background:linear-gradient(180deg,#EFC684,#C9924F 58%,#A2712F)}
+.btn-go{border-color:rgba(63,169,106,.5);color:#7FD4A0;background:rgba(63,169,106,.12)}
+.btn-work{border-color:rgba(224,138,60,.5);color:#F0B072;background:rgba(224,138,60,.12)}
+.btn-stop{border-color:rgba(216,80,63,.5);color:#F0897A;background:rgba(216,80,63,.12)}
+.btn-big{width:100%;min-height:58px;font-size:14px;text-align:center}
+.chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:5px 12px;
+  border-radius:99px;border:1px solid var(--line);color:var(--steel);white-space:nowrap}
+.chip.go{border-color:rgba(63,169,106,.45);color:#7FD4A0;background:rgba(63,169,106,.1)}
+.chip.work{border-color:rgba(224,138,60,.45);color:#F0B072;background:rgba(224,138,60,.1)}
+.chip.stop{border-color:rgba(216,80,63,.5);color:#F0897A;background:rgba(216,80,63,.12)}
+.chip.gold{border-color:var(--bronze-deep);color:var(--bronze-lt);background:rgba(201,146,79,.1)}
+
+/* stage rail */
+.rail{display:flex;gap:4px;align-items:flex-end}
+.rail .seg{flex:1;min-width:0}
+.rail .seg .bar{height:8px;border-radius:99px;background:var(--idle)}
+.rail .seg .tick{font-family:var(--mono);font-size:8px;color:var(--dim);margin-bottom:7px;
+  white-space:nowrap;overflow:hidden}
+.blink{animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* shell */
+.shell{display:grid;grid-template-columns:1fr 236px;min-height:100dvh}
+.side{border-inline-start:1px solid var(--line);background:#0E1013;padding:24px 0;
+  position:sticky;top:0;height:100dvh;display:flex;flex-direction:column}
+.nav-item{display:block;width:calc(100% - 20px);margin:0 10px;padding:12px 14px;font-size:14px;
+  color:var(--steel);border-radius:12px;text-decoration:none;transition:.16s}
+.nav-item:hover{color:var(--bone);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--bronze-lt);background:rgba(201,146,79,.12);
+  box-shadow:inset 0 0 0 1px rgba(201,146,79,.28)}
+main{padding:28px clamp(16px,3vw,40px) 80px;min-width:0}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(23px,3vw,31px);margin:6px 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px}
+.lockbar{padding:13px 15px;border-radius:12px;font-size:13px;color:var(--bronze-lt);
+  background:rgba(201,146,79,.1);border:1px dashed rgba(201,146,79,.4)}
+.sig{margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.025);
+  border:1px solid var(--line-soft);font-family:var(--mono);font-size:10px;color:var(--steel)}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;overflow-x:auto;padding:0;
+    border-inline-start:0;border-bottom:1px solid var(--line);z-index:30}
+  .nav-item{white-space:nowrap;margin:8px 4px;border-radius:99px;width:auto}
+  main{padding:20px 15px 90px}
+  .grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+/* ---------- readable section headings ----------
+   The small mono labels were 10px in a near-transparent grey. On a shop
+   floor screen, and for anyone over forty, that is unreadable. These rules
+   use !important on purpose: the headings are set with inline styles in the
+   pages, and this is the one place to fix all of them at once. */
+.panel h4,
+h4.mono {
+  font-size: 13px !important;
+  letter-spacing: .1em !important;
+  color: var(--steel) !important;
+  font-weight: 400 !important;
+  margin-bottom: 16px !important;
+}
+
+/* the standalone labels above a group of cards ("כל הפרויקטים", "פריטים בייצור") */
+main > .mono {
+  font-size: 13px !important;
+  letter-spacing: .12em !important;
+  color: var(--steel) !important;
+}
+
+/* project code above the title stays gold, just larger */
+main > .mono:first-child {
+  font-size: 14px !important;
+  color: var(--bronze-lt) !important;
+}
+
+/* stage names and crew lines inside a panel */
+.panel .mono { font-size: 12px; }
+
+/* the small print under a heading */
+label { font-size: 13px !important; color: var(--steel) !important; }
