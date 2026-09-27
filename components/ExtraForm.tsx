@@ -86,7 +86,7 @@ export function ExtraForm({ projects, profiles, lang = "he" }: { projects: any[]
         borderStyle: "dashed", borderColor: "rgba(201,146,79,.5)", color: "var(--bronze-lt)",
       }}>
         📷 {t("תמונה מהשטח", lang)}
-        <input type="file" accept="image/*" capture="environment" multiple hidden
+        <input type="file" accept="image/*" multiple hidden
           onChange={(e) => setFiles([...(e.target.files ?? [])])} />
       </label>
 

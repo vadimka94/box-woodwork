@@ -42,7 +42,7 @@ export function AddItem({ projectId }: { projectId: string }) {
         borderStyle: "dashed", borderColor: "rgba(201,146,79,.5)", color: "var(--bronze-lt)",
       }}>
         📷 תמונת מידות מהשטח
-        <input type="file" accept="image/*" capture="environment" multiple hidden
+        <input type="file" accept="image/*" multiple hidden
           onChange={(e) => setFiles([...(e.target.files ?? [])])} />
       </label>
 
@@ -85,7 +85,7 @@ export function MorePhotos({ projectId, itemId }: { projectId: string; itemId: s
       opacity: pending ? 0.5 : 1,
     }}>
       {pending ? "מעלה…" : "📷 הוסף תמונה"}
-      <input type="file" accept="image/*" capture="environment" multiple hidden
+      <input type="file" accept="image/*" multiple hidden
         onChange={(e) => {
           const fd = new FormData();
           [...(e.target.files ?? [])].forEach((f) => fd.append("photos", f));
