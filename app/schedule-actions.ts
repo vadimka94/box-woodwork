@@ -4,18 +4,29 @@ import { revalidatePath } from "next/cache";
 import { safe } from "@/lib/action-result";
 import { createClient, currentUser } from "@/lib/supabase/server";
 
-/** Books an installation: a date, a project, and who is driving out. */
+/**
+ * Books a job on the calendar: a date, who is driving out, and what it is —
+ * either a project, or a free-text title for work that has no project card
+ * (a pop-up installation, a standing site). The database enforces that one
+ * of the two is present; see migrations/015_other_installations.sql.
+ */
 async function createInstallationImpl(form: FormData) {
   const supabase = await createClient();
   const me = await currentUser();
   if (!me || me.role !== "admin") throw new Error("רק ואדים או מקס יכולים לקבוע התקנה");
 
+  const isOther = String(form.get("kind") ?? "project") === "other";
   const project_id = String(form.get("project_id") ?? "");
+  const title = String(form.get("title") ?? "").trim();
   const scheduled_date = String(form.get("scheduled_date") ?? "");
-  if (!project_id || !scheduled_date) throw new Error("צריך פרויקט ותאריך");
+
+  if (!scheduled_date) throw new Error("צריך תאריך");
+  if (isOther && !title) throw new Error("צריך לכתוב במה מדובר");
+  if (!isOther && !project_id) throw new Error("צריך לבחור פרויקט");
 
   const { data, error } = await supabase.from("installations").insert({
-    project_id,
+    project_id: isOther ? null : project_id,
+    title: isOther ? title : null,
     scheduled_date,
     start_time: String(form.get("start_time") ?? "") || null,
     address: String(form.get("address") ?? "").trim() || null,
@@ -31,8 +42,9 @@ async function createInstallationImpl(form: FormData) {
   }
 
   await supabase.from("activity_log").insert({
-    actor: me.id, action: "קבע התקנה", entity: "installation", entity_id: data.id,
-    detail: scheduled_date,
+    actor: me.id, action: isOther ? "קבע עבודה אחרת" : "קבע התקנה",
+    entity: "installation", entity_id: data.id,
+    detail: isOther ? `${scheduled_date} · ${title}` : scheduled_date,
   });
 
   revalidatePath("/", "layout");

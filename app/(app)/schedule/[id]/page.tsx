@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { getInstallation, days } from "@/lib/schedule";
+import { getInstallation, days, isOtherJob, jobTitle, jobWhere } from "@/lib/schedule";
 import { t as tr, type Lang } from "@/lib/i18n";
 import { both, toRussian } from "@/lib/tv-text";
 import { InstallCrew, InstallStatus } from "@/components/InstallForm";
@@ -15,8 +15,10 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
   if (!install) notFound();
 
   const p = install.project;
+  const other = isOtherJob(install);
+  const heading = jobTitle(install);
   const d = new Date(install.scheduled_date + "T00:00:00");
-  const address = install.address || [p?.city].filter(Boolean).join(" ");
+  const address = jobWhere(install);
   const maps = address ? `https://waze.com/ul?q=${encodeURIComponent(address)}` : null;
   const released = install.items.filter((i: any) => i.gate_release_ok).length;
 
@@ -24,7 +26,7 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
   const tv = me.role === "display";
   const t = (s: string, l: Lang) => (tv ? both(s) : tr(s, l));
   const [ruName, ruNote, ...ruItems] = tv
-    ? await toRussian([p?.name, install.note, ...install.items.map((i: any) => i.name)])
+    ? await toRussian([heading, install.note, ...install.items.map((i: any) => i.name)])
     : [];
   const Ru = ({ text, size = 15 }: { text?: string | null; size?: number }) =>
     tv && text ? <div style={{ color: "#2F5D8C", fontSize: size, marginTop: 4 }} dir="ltr">{text}</div> : null;
@@ -37,9 +39,11 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
             {days(lang)[d.getDay()]}{tv ? ` · ${days("ru" as Lang)[d.getDay()]}` : ""} · {install.scheduled_date}
             {install.start_time ? ` · ${t("יציאה", lang)} ${install.start_time.slice(0, 5)}` : ""}
           </div>
-          <h1 style={{ marginBottom: 8 }}>{p?.name}</h1>
+          <h1 style={{ marginBottom: 8 }}>{heading}</h1>
           <Ru text={ruName} size={22} />
-          <div style={{ fontSize: 15, color: "var(--steel)" }}>{p?.code} · {t("התקנה אצל הלקוח", lang)}</div>
+          <div style={{ fontSize: 15, color: "var(--steel)" }}>
+            {other ? t("עבודה אחרת — לא מתוך פרויקט", lang) : `${p?.code} · ${t("התקנה אצל הלקוח", lang)}`}
+          </div>
         </div>
         {!tv && <Link className="btn" href="/schedule" style={{ textDecoration: "none" }}>← {t("ללוח ההתקנות", lang)}</Link>}
       </div>
@@ -81,6 +85,7 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {!other && (
       <div className="panel" style={{ marginTop: 16 }}>
         <h4 className="mono">{t("מה מתקינים", lang)}</h4>
         {install.items.length === 0 && (
@@ -115,6 +120,7 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
           </Link>
         )}
       </div>
+      )}
 
       <div className="panel" style={{ marginTop: 16 }}>
         <h4 className="mono">{t("מי יוצא", lang)}</h4>

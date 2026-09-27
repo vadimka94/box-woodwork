@@ -8,6 +8,8 @@ type P = { id: string; full_name: string; role: string };
 
 export function NewInstallation({ projects, profiles }: { projects: any[]; profiles: P[] }) {
   const [open, setOpen] = useState(false);
+  /* "other" = work with no project card: a pop-up job, or a standing site */
+  const [kind, setKind] = useState<"project" | "other">("project");
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const ref = useRef<HTMLFormElement>(null);
@@ -16,21 +18,42 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
     return <button className="btn btn-primary" onClick={() => setOpen(true)}>+ קבע התקנה</button>;
   }
 
+  const other = kind === "other";
+
   return (
     <form ref={ref} className="panel"
       action={(fd) => start(async () => {
-        try { await must(createInstallation(fd)); ref.current?.reset(); setOpen(false); }
+        try { await must(createInstallation(fd)); ref.current?.reset(); setOpen(false); setKind("project"); }
         catch (e: any) { setErr(e.message); }
       })}>
+      <input type="hidden" name="kind" value={kind} />
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <KindTab on={!other} onPick={() => { setKind("project"); setErr(null); }}
+          title="פרויקט" desc="התקנה של עבודה שיש לה כרטיס פרויקט" />
+        <KindTab on={other} onPick={() => { setKind("other"); setErr(null); }}
+          title="אחר" desc="עבודה מזדמנת או אתר קבוע — בלי פרויקט" />
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
-          <label>פרויקט</label>
-          <select name="project_id" required style={{ marginTop: 7 }}>
-            <option value="">— בחר —</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.code} · {p.name} · {p.client_name}</option>
-            ))}
-          </select>
+          {other ? (
+            <>
+              <label>במה מדובר</label>
+              <input name="title" required placeholder='למשל: קמ"ג דימונה — הרכבת ארונות'
+                style={{ marginTop: 7 }} />
+            </>
+          ) : (
+            <>
+              <label>פרויקט</label>
+              <select name="project_id" required style={{ marginTop: 7 }}>
+                <option value="">— בחר —</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} · {p.name} · {p.client_name}</option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
         <div>
           <label>תאריך</label>
@@ -42,7 +65,8 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
         </div>
         <div>
           <label>כתובת האתר</label>
-          <input name="address" placeholder="אם שונה מכתובת הלקוח" style={{ marginTop: 7 }} />
+          <input name="address" required={other}
+            placeholder={other ? "לאן נוסעים" : "אם שונה מכתובת הלקוח"} style={{ marginTop: 7 }} />
         </div>
       </div>
 
@@ -66,10 +90,30 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
       {err && <div style={{ color: "#F0897A", fontSize: 13, marginTop: 12 }}>{err}</div>}
 
       <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-        <button className="btn btn-primary" disabled={pending}>{pending ? "שומר…" : "קבע התקנה"}</button>
+        <button className="btn btn-primary" disabled={pending}>
+          {pending ? "שומר…" : other ? "קבע עבודה" : "קבע התקנה"}
+        </button>
         <button type="button" className="btn" onClick={() => setOpen(false)}>ביטול</button>
       </div>
     </form>
+  );
+}
+
+function KindTab({ title, desc, on, onPick }: {
+  title: string; desc: string; on: boolean; onPick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onPick}
+      style={{
+        flex: 1, textAlign: "start", padding: "12px 14px", borderRadius: 12,
+        border: `2px solid ${on ? "var(--bronze)" : "var(--line)"}`,
+        background: on ? "rgba(201,146,79,.1)" : "transparent",
+      }}>
+      <div style={{ fontSize: 15, color: on ? "var(--bronze-lt)" : undefined }}>
+        {on ? "● " : "○ "}{title}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--steel)", marginTop: 5, lineHeight: 1.5 }}>{desc}</div>
+    </button>
   );
 }
 

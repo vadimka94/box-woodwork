@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
 import { floorBoard, openBlocks, pendingGates } from "@/lib/queries";
-import { getInstallations, isoDay, HE_DAYS } from "@/lib/schedule";
+import { getInstallations, isoDay, HE_DAYS, jobCode, jobTitle, isOtherJob } from "@/lib/schedule";
 import { getExtras } from "@/lib/extras";
 import { ROUTE_LABEL, SOURCE_LABEL } from "@/lib/extra-labels";
 import { Realtime } from "@/components/Realtime";
@@ -150,8 +150,11 @@ export default async function TvPage() {
 
               {j && (
                 <>
-                  <div className="mono" style={{ fontSize: "4.6vh", color: "#FFD9A8", lineHeight: 1.15 }}>
-                    {j.project?.code}
+                  <div className="mono" style={{
+                    fontSize: isOtherJob(j) ? "2.6vh" : "4.6vh", color: "#FFD9A8", lineHeight: 1.15,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>
+                    {isOtherJob(j) ? jobTitle(j) : jobCode(j)}
                   </div>
                   <div className="mono" style={{ fontSize: "2.6vh", color: "#F0A050" }}>
                     {j.start_time ? j.start_time.slice(0, 5) : "—"}

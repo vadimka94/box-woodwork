@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { currentUser, createClient } from "@/lib/supabase/server";
-import { getInstallations, monthGrid, isoDay, months, days } from "@/lib/schedule";
+import { getInstallations, monthGrid, isoDay, months, days, isOtherJob, jobTitle, jobWhere } from "@/lib/schedule";
 import { t, type Lang } from "@/lib/i18n";
 import { NewInstallation, InstallCrew } from "@/components/InstallForm";
 
@@ -88,10 +88,11 @@ export default async function SchedulePage({
                     background: "rgba(224,138,60,.18)", border: "1px solid rgba(224,138,60,.35)",
                   }}>
                     <div style={{ color: "#93540F" }}>
-                      {i.start_time ? i.start_time.slice(0, 5) + " · " : ""}{i.project?.name}
+                      {i.start_time ? i.start_time.slice(0, 5) + " · " : ""}{jobTitle(i)}
                     </div>
                     <div className="mono" style={{ fontSize: 10, color: "var(--steel)", marginTop: 3 }}>
-                      {i.project?.city} · {i.crew?.map((c) => c.full_name).join(", ") || t("טרם שויך צוות", lang)}
+                      {isOtherJob(i) ? "אחר · " : ""}{jobWhere(i)}
+                      {" · "}{i.crew?.map((c) => c.full_name).join(", ") || t("טרם שויך צוות", lang)}
                     </div>
                   </div>
                 </Link>
@@ -119,10 +120,11 @@ export default async function SchedulePage({
                 {i.scheduled_date} {i.start_time ? `· ${i.start_time.slice(0, 5)}` : ""}
               </div>
               <div style={{ fontFamily: "var(--display)", fontSize: 20, margin: "8px 0 4px" }}>
-                {i.project?.name}
+                {jobTitle(i)}
+                {isOtherJob(i) && <span className="chip" style={{ marginInlineStart: 10 }}>אחר</span>}
               </div>
               <div style={{ fontSize: 13, color: "var(--steel)" }}>
-                {i.project?.client_name} · {i.address ?? i.project?.city}
+                {[i.project?.client_name, jobWhere(i)].filter(Boolean).join(" · ") || "—"}
               </div>
               {i.note && <div style={{ fontSize: 13, marginTop: 10, color: "#3A3E45" }}>{i.note}</div>}
             </div>

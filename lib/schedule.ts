@@ -1,10 +1,25 @@
 import { createClient } from "@/lib/supabase/server";
 
 export type Install = {
-  id: string; project_id: string; scheduled_date: string; start_time: string | null;
+  id: string; project_id: string | null; title: string | null;
+  scheduled_date: string; start_time: string | null;
   address: string | null; note: string | null; status: "planned" | "done" | "cancelled";
   project?: any; crew?: { id: string; full_name: string }[];
 };
+
+/* ---------- a job on the calendar is either a project, or "אחר" ---------- */
+
+/** No project card behind it — a pop-up job, or a standing site. */
+export const isOtherJob = (i: any) => !i?.project_id;
+
+/** What to call it on screen. */
+export const jobTitle = (i: any) => i?.project?.name ?? i?.title ?? "עבודה אחרת";
+
+/** The short mono tag: a project code, or the word "אחר". */
+export const jobCode = (i: any) => i?.project?.code ?? "אחר";
+
+/** Where the van is going. */
+export const jobWhere = (i: any) => i?.address || i?.project?.city || "";
 
 /** Installations in a window, with their crews. Used by the calendar, the
  *  floor screen and the carpenter's phone. */
@@ -48,11 +63,17 @@ export async function getInstallation(id: string) {
   if (error) console.error("getInstallation:", error.message);
   if (!install) return null;
 
+  /* a job with no project has no project row and no items to fetch */
+  const hasProject = !!install.project_id;
   const [{ data: project }, { data: crew }, { data: profiles }, { data: items }] = await Promise.all([
-    supabase.from("projects").select("*").eq("id", install.project_id).maybeSingle(),
+    hasProject
+      ? supabase.from("projects").select("*").eq("id", install.project_id).maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase.from("installation_crew").select("profile_id").eq("installation_id", id),
     supabase.from("profiles").select("id, full_name, title"),
-    supabase.from("items").select("id, name, qty, gate_release_ok").eq("project_id", install.project_id),
+    hasProject
+      ? supabase.from("items").select("id, name, qty, gate_release_ok").eq("project_id", install.project_id)
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   return {
