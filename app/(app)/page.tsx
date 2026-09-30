@@ -5,6 +5,9 @@ import { listProjects, openBlocks, pendingGates, deliveredWaiting } from "@/lib/
 import { StageRail } from "@/components/StageRail";
 import { REASON_LABEL } from "@/lib/i18n";
 import { getLeads, summarize, stageLabel, fmtDate, daysSince, fmtDateTime } from "@/lib/crm";
+import { salesInsights } from "@/lib/sales-insights";
+import { SalesNumbers } from "@/components/SalesNumbers";
+import { StalledDeals } from "@/components/StalledDeals";
 
 const since = (iso: string) => {
   const m = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -20,6 +23,7 @@ export default async function Dashboard() {
     listProjects(), openBlocks(), pendingGates(), getLeads(), deliveredWaiting(),
   ]);
   const sales = summarize(crm.leads);
+  const numbers = salesInsights(crm.leads);
   const waiting = gates.planGates.length + gates.releaseGates.length;
   /* delivered jobs are finished work — they do not belong in the live count */
   const doneIds = new Set(handedOver.map((p: any) => p.id));
@@ -36,6 +40,8 @@ export default async function Dashboard() {
         <Kpi value={active.length} label="פרויקטים פעילים" color="var(--work)" />
         <Kpi value={projects.filter((p) => p.status === "draft").length} label="טיוטות" color="var(--steel)" />
       </div>
+
+      <StalledDeals deals={sales.stalled as any} />
 
       {(sales.attention.length > 0 || sales.upcomingMeetings.length > 0) && (
         <>
@@ -115,6 +121,8 @@ export default async function Dashboard() {
           ))}
         </div>
       )}
+
+      <SalesNumbers d={numbers} />
 
       <Eyebrow>כל הפרויקטים</Eyebrow>
       <div className="grid">

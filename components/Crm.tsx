@@ -176,19 +176,20 @@ export function QuickAdd({ customer, startOpen = false }: {
           )}
 
           {!linked && (
-            <Two>
-              <Field label="עיר">
-                <input name="city" placeholder="רעננה" />
-              </Field>
-              <Field label="מאיפה הגיע">
-                <select name="source" defaultValue="לא ידוע">
-                  {SOURCE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </Field>
-            </Two>
+            <Field label="עיר">
+              <input name="city" placeholder="רעננה" />
+            </Field>
           )}
         </>
       )}
+
+      {/* asked on every deal, not only on a new customer: the same person can
+          come back through a different channel, and that channel earned it */}
+      <Field label={linked ? "מאיפה הגיע הפעם" : "מאיפה הגיע"}>
+        <select name="source" defaultValue="לא ידוע">
+          {SOURCE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </Field>
 
       <Field label="כותרת העבודה">
         <input name="title" placeholder={kind === "contractor" ? "חיפוי לובי — בניין 3" : "חיפוי סלון + מזנון"} />
@@ -213,6 +214,19 @@ export function QuickAdd({ customer, startOpen = false }: {
 
 export function StageBar({ leadId, kind, stage }: { leadId: string; kind: "private" | "contractor"; stage: string }) {
   const { err, pending, run } = useAction();
+
+  /* The server owns the rule. A "SOFT:" refusal means "this is allowed, but
+     say you meant it" — so we ask once and send it again with force. */
+  const move = (to: string) =>
+    run(async () => {
+      const r = await setStage(leadId, to as LeadStage);
+      if (r.ok) return r;
+      const soft = r.error.startsWith("SOFT:");
+      if (!soft) return r;
+      if (!confirm(`${r.error.slice(5)}.\n\nלהעביר בכל זאת?`)) return { ok: true, data: undefined } as any;
+      return setStage(leadId, to as LeadStage, true);
+    });
+
   const steps = STAGES[kind];
   const at = steps.indexOf(stage as LeadStage);
   const closed = stage === "won" || stage === "lost";
@@ -228,7 +242,7 @@ export function StageBar({ leadId, kind, stage }: { leadId: string; kind: "priva
           const clickable = !closed && s !== "won" && !isOn;
           return (
             <button key={s} type="button" className="chip" disabled={!clickable || pending}
-              onClick={() => run(() => setStage(leadId, s))}
+              onClick={() => move(s)}
               style={{
                 cursor: clickable ? "pointer" : "default", padding: "8px 12px", fontSize: 11, opacity: 1,
                 borderColor: isOn ? "var(--bronze)" : past ? "rgba(46,131,85,.45)" : "var(--line)",
@@ -244,13 +258,13 @@ export function StageBar({ leadId, kind, stage }: { leadId: string; kind: "priva
 
       {next && (
         <button className="btn btn-primary" style={{ marginTop: 14 }} disabled={pending}
-          onClick={() => run(() => setStage(leadId, next))}>
+          onClick={() => move(next)}>
           {pending ? "מעביר…" : `לשלב הבא: ${stageLabel(kind, next)} ←`}
         </button>
       )}
       {!closed && (
         <div style={{ fontSize: 12, color: "var(--steel)", marginTop: 10 }}>
-          אפשר ללחוץ על כל שלב כדי לקפוץ אליו, גם אחורה.
+          אחורה אפשר תמיד. קדימה — רק כשהנתון שהשלב מדבר עליו כבר רשום.
         </div>
       )}
       {stage === "won" && (

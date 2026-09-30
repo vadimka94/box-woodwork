@@ -4,9 +4,29 @@ import { EARLY_STAGES, STALE_DAYS, daysSince, todayIL } from "@/lib/crm-labels";
 
 export * from "@/lib/crm-labels";
 
+/** Stages where we are the ones waiting, and chasing is ours to do. */
+const CHASED_STAGES = ["waiting_info", "estimate_sent", "awaiting_payment"];
+
+/** How many automatic nudges a deal gets before it owes us an answer. */
+const MAX_NUDGES = 3;
+
+/**
+ * Three nudges are spent and the last date has come and gone. The deal is not
+ * "stuck" — it is waiting on a decision from you. It gets its own short list
+ * instead of sitting in the attention pile forever, drowning the fresh ones.
+ */
+export function awaitingDecision(l: any) {
+  if (l.stage === "won" || l.stage === "lost") return false;
+  if (!CHASED_STAGES.includes(l.stage)) return false;
+  if (Number(l.follow_up_step ?? 0) < MAX_NUDGES) return false;
+  return !l.follow_up_on || l.follow_up_on <= todayIL();
+}
+
 /** A deal needs a nudge when its follow-up date arrived, or it sat too long before the visit. */
 export function needsAttention(l: any) {
   if (l.stage === "won" || l.stage === "lost") return false;
+  /* those have their own list — showing them twice is just noise */
+  if (awaitingDecision(l)) return false;
   if (l.follow_up_on && l.follow_up_on <= todayIL()) return true;
   if (l.stage === "awaiting_payment" && daysSince(l.stage_changed_at) >= STALE_DAYS) return true;
   return EARLY_STAGES.includes(l.stage) && daysSince(l.stage_changed_at) >= STALE_DAYS;
@@ -78,6 +98,7 @@ export function summarize(leads: any[]) {
   const awaiting = leads.filter((l) => l.stage === "awaiting_payment");
 
   return {
+    stalled: open.filter(awaitingDecision),
     newThisMonth: thisMonth.length,
     toMeetingPct,
     open: open.length,

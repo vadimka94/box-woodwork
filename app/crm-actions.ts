@@ -32,6 +32,27 @@ async function log(supabase: any, leadId: string, actor: string, kind: string, n
   await supabase.from("lead_events").insert({ lead_id: leadId, actor, kind, note });
 }
 
+/**
+ * The follow-up rhythm: 3 days, then 7, then 14. Converted quotes close in a
+ * couple of days; the ones that die sit untouched for weeks. Three nudges is
+ * where the industry advice lands, and after the third the honest move is to
+ * ask for a yes or a no rather than keep chasing.
+ */
+const NUDGE_DAYS = [3, 7, 14];
+
+/** Stages where silence is the enemy and the ball is in our court to chase. */
+const CHASED_STAGES = ["waiting_info", "estimate_sent", "awaiting_payment"];
+
+const inDays = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+};
+
+/** step is 1-based; returns null once the three nudges are spent. */
+const nudge = (step: number) =>
+  step >= 1 && step <= NUDGE_DAYS.length ? inDays(NUDGE_DAYS[step - 1]) : null;
+
 function done() {
   revalidatePath("/crm", "layout");
   revalidatePath("/");
@@ -108,6 +129,9 @@ async function addLeadImpl(fd: FormData): Promise<{ id: string }> {
     kind,
     title: str(fd, "title"),
     request: str(fd, "request"),
+    /* on the deal, not the customer — a repeat customer can arrive twice
+       through two different channels, and both deserve the credit */
+    source: str(fd, "source"),
     created_by: me.id,
   }).select("id").single();
   if (error) throw new Error(`שמירת הפנייה נכשלה: ${error.message}`);
@@ -155,16 +179,68 @@ async function updateLeadImpl(leadId: string, fd: FormData) {
 }
 
 /** Moves a deal along. "won" and "lost" have their own actions. */
-async function setStageImpl(leadId: string, stage: LeadStage) {
+/**
+ * What a stage means, enforced.
+ *
+ * Moving BACKWARD is always free — a wrong click should cost nothing, and a
+ * pipeline that punishes correction is a pipeline people stop touching.
+ * Moving FORWARD into a stage whose whole meaning is a number requires that
+ * number: "פגישה נקבעה" without a date is not a booked meeting, and a deal
+ * sitting in "הערכת מחיר נשלחה" with no estimate makes the accuracy report
+ * a lie.
+ *
+ * hard  — refused outright.
+ * soft  — refused once, and allowed on a second, deliberate press.
+ */
+const STAGE_NEEDS: Record<string, { hard?: (l: any) => boolean; soft?: (l: any) => boolean; why: string }> = {
+  estimate_sent: {
+    soft: (l) => l.estimate_min === null && l.estimate_max === null,
+    why: "לא רשומה הערכת מחיר",
+  },
+  meeting_set: {
+    hard: (l) => !l.meeting_at,
+    why: "לא נקבע מועד לפגישה",
+  },
+  meeting_done: {
+    hard: (l) => l.final_price === null,
+    why: "לא נרשם מחיר סופי",
+  },
+  awaiting_payment: {
+    hard: (l) => l.final_price === null,
+    why: "לא נרשם מחיר סופי",
+  },
+};
+
+async function setStageImpl(leadId: string, stage: LeadStage, force = false) {
   const { supabase, me } = await admin();
-  const { data: lead } = await supabase.from("leads").select("kind, stage").eq("id", leadId).single();
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("kind, stage, meeting_at, final_price, estimate_min, estimate_max")
+    .eq("id", leadId).single();
   if (!lead) throw new Error("הפנייה לא נמצאה");
   if (stage === "won" || stage === "lost") throw new Error("לסגירה או לביטול יש כפתור נפרד");
   if (!STAGES[lead.kind as "private" | "contractor"].includes(stage)) throw new Error("השלב לא מתאים לסוג הלקוח");
   if (lead.stage === "won") throw new Error("העסקה כבר נסגרה ויש לה פרויקט");
 
+  /* only on the way forward — going back never asks for anything */
+  const order = STAGES[lead.kind as "private" | "contractor"];
+  const forward = order.indexOf(stage) > order.indexOf(lead.stage as LeadStage);
+  const need = forward ? STAGE_NEEDS[stage] : undefined;
+  if (need?.hard?.(lead)) {
+    throw new Error(`${need.why} — אי אפשר להעביר ל"${stageLabel(lead.kind, stage)}" בלעדיו`);
+  }
+  if (need?.soft?.(lead) && !force) {
+    throw new Error(`SOFT:${need.why}`);
+  }
+
+  /* entering a stage where we are the ones waiting arms the first nudge;
+     any other move clears it, because the reason to chase is gone */
+  const chased = CHASED_STAGES.includes(stage);
   const { error } = await supabase.from("leads").update({
-    stage, stage_changed_at: new Date().toISOString(), follow_up_on: null,
+    stage,
+    stage_changed_at: new Date().toISOString(),
+    follow_up_on: chased ? nudge(1) : null,
+    follow_up_step: chased ? 1 : 0,
   }).eq("id", leadId);
   if (error) throw new Error(error.message);
 
@@ -180,7 +256,22 @@ async function addNoteImpl(leadId: string, fd: FormData) {
   await log(supabase, leadId, me.id, kind, note);
 
   const follow = str(fd, "follow_up_on");
-  if (follow) await supabase.from("leads").update({ follow_up_on: follow }).eq("id", leadId);
+  if (follow) {
+    /* a date typed by hand always wins, and it ends the automatic rhythm */
+    await supabase.from("leads")
+      .update({ follow_up_on: follow, follow_up_step: 0 }).eq("id", leadId);
+  } else {
+    /* no date given: this touch counts, so move to the next interval */
+    const { data: lead } = await supabase
+      .from("leads").select("stage, follow_up_step").eq("id", leadId).single();
+    if (lead && CHASED_STAGES.includes(lead.stage)) {
+      const next = Number(lead.follow_up_step ?? 0) + 1;
+      await supabase.from("leads").update({
+        follow_up_on: nudge(next),          /* null once the three are spent */
+        follow_up_step: next,
+      }).eq("id", leadId);
+    }
+  }
   done();
 }
 
@@ -212,6 +303,34 @@ async function markLostImpl(leadId: string, fd: FormData) {
   }).eq("id", leadId).neq("stage", "won");
   if (error) throw new Error(error.message);
   await log(supabase, leadId, me.id, "lost", str(fd, "lost_note"));
+  done();
+}
+
+/** "Still alive" — push it a week out and keep it in the decision list. */
+async function snoozeLeadImpl(leadId: string, days = 7) {
+  const { supabase, me } = await admin();
+  const { data: lead } = await supabase.from("leads").select("stage").eq("id", leadId).single();
+  if (!lead) throw new Error("הפנייה לא נמצאה");
+  if (lead.stage === "won" || lead.stage === "lost") throw new Error("העסקה כבר סגורה");
+
+  const { error } = await supabase.from("leads")
+    .update({ follow_up_on: inDays(days) }).eq("id", leadId);
+  if (error) throw new Error(error.message);
+  await log(supabase, leadId, me.id, "note", `נדחה ל-${days} ימים`);
+  done();
+}
+
+/** "Stopped answering" — close it with the reason already filled in. */
+async function giveUpLeadImpl(leadId: string) {
+  const { supabase, me } = await admin();
+  const { error } = await supabase.from("leads").update({
+    stage: "lost", lost_reason: "no_reply",
+    lost_note: "לא ענה אחרי שלוש פניות",
+    stage_changed_at: new Date().toISOString(),
+    follow_up_on: null, follow_up_step: 0,
+  }).eq("id", leadId).neq("stage", "won");
+  if (error) throw new Error(error.message);
+  await log(supabase, leadId, me.id, "lost", "הפסיק לענות");
   done();
 }
 
@@ -397,8 +516,8 @@ export async function updateLead(leadId: string, fd: FormData) {
   return safe(() => updateLeadImpl(leadId, fd));
 }
 
-export async function setStage(leadId: string, stage: LeadStage) {
-  return safe(() => setStageImpl(leadId, stage));
+export async function setStage(leadId: string, stage: LeadStage, force = false) {
+  return safe(() => setStageImpl(leadId, stage, force));
 }
 
 export async function addNote(leadId: string, fd: FormData) {
@@ -411,6 +530,14 @@ export async function uploadLeadFiles(leadId: string, fd: FormData) {
 
 export async function markLost(leadId: string, fd: FormData) {
   return safe(() => markLostImpl(leadId, fd));
+}
+
+export async function snoozeLead(leadId: string, days = 7) {
+  return safe(() => snoozeLeadImpl(leadId, days));
+}
+
+export async function giveUpLead(leadId: string) {
+  return safe(() => giveUpLeadImpl(leadId));
 }
 
 export async function reopenLead(leadId: string) {
