@@ -43,6 +43,9 @@ async function createProjectImpl(form: FormData): Promise<{ code: string }> {
     note_lang: me.lang ?? "he",
   kind: String(form.get("kind") ?? "full"),
     has_carpentry: String(form.get("has_carpentry") ?? "true") !== "false",
+    /* two-phase job: the trigger seeds a seq-0 prep stage before מדידה */
+    prep_required: String(form.get("prep_required") ?? "") === "true",
+    prep_note: String(form.get("prep_note") ?? "").trim() || null,
     status: "draft",
     created_by: me.id,
   }).select("code").single();
@@ -148,6 +151,36 @@ async function approveForProductionImpl(projectId: string) {
   revalidatePath("/", "layout");
 }
 
+/**
+ * Turns the preparatory site stage on or off for a project that already
+ * exists — the only way to fix a two-phase job that was opened without it.
+ * The work happens in SQL (set_project_prep) so the stage and the flag can
+ * never drift apart; see supabase/migrations/018_prep_phase.sql.
+ */
+async function setProjectPrepImpl(projectId: string, want: boolean, note?: string) {
+  const supabase = await createClient();
+  const me = await currentUser();
+  if (!me || me.role !== "admin") throw new Error("רק ואדים או מקס יכולים לשנות שלב הכנה");
+
+  const { error } = await supabase.rpc("set_project_prep", {
+    pid: projectId, want, note: note?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/", "layout");
+}
+
+/** Just the description of what has to be done on site. */
+async function updatePrepNoteImpl(projectId: string, note: string) {
+  const supabase = await createClient();
+  const me = await currentUser();
+  if (!me || me.role !== "admin") throw new Error("רק מנהל יכול לערוך את ההערה");
+  const { error } = await supabase.from("projects")
+    .update({ prep_note: note.trim() || null }).eq("id", projectId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
+}
+
 /** Name, client and due date can be fixed at any time — a draft often starts half-filled. */
 async function updateProjectDetailsImpl(projectId: string, form: FormData) {
   const supabase = await createClient();
@@ -197,4 +230,12 @@ export async function approveForProduction(projectId: string) {
 
 export async function updateProjectDetails(projectId: string, form: FormData) {
   return safe(() => updateProjectDetailsImpl(projectId, form));
+}
+
+export async function setProjectPrep(projectId: string, want: boolean, note?: string) {
+  return safe(() => setProjectPrepImpl(projectId, want, note));
+}
+
+export async function updatePrepNote(projectId: string, note: string) {
+  return safe(() => updatePrepNoteImpl(projectId, note));
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { getInstallation, days, isOtherJob, jobTitle, jobWhere } from "@/lib/schedule";
+import { getInstallation, days, isOtherJob, isPrepJob, jobTitle, jobPurpose, jobWhere } from "@/lib/schedule";
 import { t as tr, type Lang } from "@/lib/i18n";
 import { both, toRussian } from "@/lib/tv-text";
 import { InstallCrew, InstallStatus } from "@/components/InstallForm";
@@ -16,6 +16,8 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
 
   const p = install.project;
   const other = isOtherJob(install);
+  /* a prep trip is about the site, not about the finished items */
+  const prep = isPrepJob(install);
   const heading = jobTitle(install);
   const d = new Date(install.scheduled_date + "T00:00:00");
   const address = jobWhere(install);
@@ -42,7 +44,7 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
           <h1 style={{ marginBottom: 8 }}>{heading}</h1>
           <Ru text={ruName} size={22} />
           <div style={{ fontSize: 15, color: "var(--steel)" }}>
-            {other ? t("עבודה אחרת — לא מתוך פרויקט", lang) : `${p?.code} · ${t("התקנה אצל הלקוח", lang)}`}
+            {other ? t("עבודה אחרת — לא מתוך פרויקט", lang) : `${p?.code} · ${t(jobPurpose(install), lang)}`}
           </div>
         </div>
         {!tv && <Link className="btn" href="/schedule" style={{ textDecoration: "none" }}>← {t("ללוח ההתקנות", lang)}</Link>}
@@ -85,7 +87,14 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {!other && (
+      {prep && p?.prep_note && (
+        <div className="panel" style={{ marginTop: 16, borderColor: "rgba(201,146,79,.6)" }}>
+          <h4 className="mono">{t("מה צריך לעשות בשטח", lang)}</h4>
+          <div style={{ fontSize: 15, lineHeight: 1.85 }}>{p.prep_note}</div>
+        </div>
+      )}
+
+      {!other && !prep && (
       <div className="panel" style={{ marginTop: 16 }}>
         <h4 className="mono">{t("מה מתקינים", lang)}</h4>
         {install.items.length === 0 && (
@@ -132,7 +141,8 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
 
       {me.role === "admin" && (
         <div style={{ marginTop: 16 }}>
-          <InstallStatus installationId={install.id} status={install.status} />
+          <InstallStatus installationId={install.id} status={install.status}
+                         purpose={install.purpose ?? "install"} />
         </div>
       )}
     </>

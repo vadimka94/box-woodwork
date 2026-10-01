@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/supabase/server";
 import { myStages } from "@/lib/queries";
-import { getInstallations, isoDay } from "@/lib/schedule";
+import { getInstallations, isoDay, isPrepJob } from "@/lib/schedule";
 import { getExtras } from "@/lib/extras";
 import { ROUTE_LABEL } from "@/lib/extra-labels";
 import { ExtraActions } from "@/components/ExtraForm";
@@ -49,6 +49,11 @@ export default async function TasksPage() {
               <div className="mono" style={{ fontSize: 14, color: "#93540F" }}>
                 {i.scheduled_date}{i.start_time ? ` · ${i.start_time.slice(0, 5)}` : ""}
               </div>
+              {isPrepJob(i) && (
+                <span className="chip gold" style={{ marginTop: 8, display: "inline-block" }}>
+                  {t("עבודת הכנה בשטח", lang)}
+                </span>
+              )}
               <div style={{ fontSize: 20, margin: "10px 0 6px" }}>{i.project?.name}</div>
               <div style={{ fontSize: 14, color: "var(--steel)" }}>
                 {i.project?.client_name} · {i.address ?? i.project?.city}

@@ -151,20 +151,32 @@ export async function myStages(profileId: string) {
     .from("stages").select("*").in("id", ids).neq("status", "done").order("seq");
   if (!stages?.length) return [];
 
-  const [{ data: projects }, { data: items }, { data: blocks }, { data: photos }] = await Promise.all([
-    supabase.from("projects").select("*").eq("status", "active"),
-    supabase.from("items").select("*"),
-    supabase.from("blocks").select("*").is("resolved_at", null),
-    supabase.from("item_photos").select("*"),
-  ]);
+  const [{ data: projects }, { data: items }, { data: blocks }, { data: photos }, { data: preps }] =
+    await Promise.all([
+      supabase.from("projects").select("*").eq("status", "active"),
+      supabase.from("items").select("*"),
+      supabase.from("blocks").select("*").is("resolved_at", null),
+      supabase.from("item_photos").select("*"),
+    /* the prep stage of a two-phase job — the phone screen has no other way
+       to know the job is still waiting on the site work (see lib/types.ts) */
+      supabase.from("stages").select("project_id, status").is("item_id", null).eq("seq", 0),
+    ]);
+
+  const prepPendingFor = (projectId: string) => {
+    const prep = (preps ?? []).find((p: any) => p.project_id === projectId);
+    return !!prep && prep.status !== "done";
+  };
 
   const out = stages
-    .map((s: any) => ({
-      ...s,
-      project: projects?.find((p: any) => p.id === s.project_id),
-      item: items?.find((i: any) => i.id === s.item_id) ?? null,
-      block: (blocks ?? []).filter((b: any) => b.stage_id === s.id),
-    }))
+    .map((s: any) => {
+      const project = projects?.find((p: any) => p.id === s.project_id);
+      return {
+        ...s,
+        project: project && { ...project, prep_pending: prepPendingFor(project.id) },
+        item: items?.find((i: any) => i.id === s.item_id) ?? null,
+        block: (blocks ?? []).filter((b: any) => b.stage_id === s.id),
+      };
+    })
     .filter((s: any) => s.project);
 
   return Promise.all(out.map(async (s: any) => ({

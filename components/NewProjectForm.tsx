@@ -35,6 +35,8 @@ export function NewProjectForm() {
   const [kind, setKind] = useState("full");
   /* deliberately empty: a contractor job must be answered, not defaulted */
   const [carp, setCarp] = useState("");
+  /* rare, but it happens: a wall has to come down before anyone can measure */
+  const [prep, setPrep] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -81,6 +83,44 @@ export function NewProjectForm() {
             {blocked && (
               <div style={{ marginTop: 12, fontSize: 13, color: "#B03B2C" }}>
                 חובה לבחור — זה קובע אילו שלבים ייווצרו.
+              </div>
+            )}
+          </div>
+        )}
+
+        {!needsCarp && (
+          <div className="panel" style={{
+            marginBottom: 16,
+            borderColor: prep ? "rgba(201,146,79,.6)" : undefined,
+          }}>
+            <h4 className="mono">שלב הכנה בשטח</h4>
+            <input type="hidden" name="prep_required" value={prep ? "true" : "false"} />
+            <button type="button" onClick={() => setPrep(!prep)}
+              style={{
+                textAlign: "start", padding: "16px 18px", borderRadius: 12, width: "100%",
+                border: `2px solid ${prep ? "var(--bronze)" : "var(--line)"}`,
+                background: prep ? "rgba(201,146,79,.1)" : "transparent",
+              }}>
+              <div style={{ fontSize: 17, color: prep ? "var(--bronze-lt)" : undefined }}>
+                {prep ? "■ " : "□ "}צריך לעבוד בשטח לפני המדידה
+              </div>
+              <div style={{ fontSize: 12, color: "var(--steel)", marginTop: 6, lineHeight: 1.6 }}>
+                פירוק קיר גבס, תשתית חשמל או כל הכנה אחרת שבלעדיה אי אפשר
+                לקחת מידות לייצור. זה לא פריט — זה שלב של הפרויקט, לפני המדידה.
+              </div>
+            </button>
+
+            {prep && (
+              <div style={{ marginTop: 14 }}>
+                <label style={{ display: "block", fontSize: 12, color: "var(--steel)", marginBottom: 7 }}>
+                  מה צריך לעשות בשטח
+                </label>
+                <textarea name="prep_note" rows={2}
+                  placeholder="למשל: פירוק קיר הגבס בכניסה והעברת תשתית חשמל לארון" />
+                <div className="lockbar" style={{ marginTop: 12 }}>
+                  כל השלבים הבאים — מדידה, תכנון והייצור — יהיו נעולים עד שתסמן
+                  שעבודת ההכנה בוצעה.
+                </div>
               </div>
             )}
           </div>

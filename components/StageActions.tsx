@@ -17,7 +17,8 @@ export function StageActions({ stageId, status, lang = "he", locked }:
 
   if (locked) {
     return <div className="lockbar">🔒 {t(
-      locked === "gate_plans" ? "נעול — ממתין לאישור התוכניות"
+      locked === "prep" ? "נעול — קודם צריך לסיים את עבודת ההכנה בשטח"
+      : locked === "gate_plans" ? "נעול — ממתין לאישור התוכניות"
       : locked === "material" ? "נעול — החומר עוד לא הוזמן"
       : "נעול — ממתין לבקרה לפני אריזה", lang)}</div>;
   }

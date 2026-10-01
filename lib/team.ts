@@ -45,7 +45,8 @@ export async function getTeamBoard(): Promise<TeamRow[]> {
   }).sort((a, b) => b.stopped.length - a.stopped.length || b.working.length - a.working.length);
 }
 
-const P_STAGES = ["מדידה", "תכנון הדמיה", "אישור לקוח"];
+/* seq 0 is the two-phase prep stage — only a few jobs have it, but it needs a standing crew */
+const P_STAGES = ["עבודת הכנה בשטח", "מדידה", "תכנון הדמיה", "אישור לקוח"];
 const I_STAGES = ["תכנות CNC", "חיתוך CNC", "הדבקת קנט", "הרכבה", "בקרת איכות", "אריזה", "התקנה"];
 
 /** The standing rules: who gets put on each stage when a project is created. */
@@ -65,7 +66,7 @@ export async function getDefaults() {
 
   return {
     profiles: profiles ?? [],
-    project: rows("project", P_STAGES, 1),
+    project: rows("project", P_STAGES, 0),
     item: rows("item", I_STAGES, 4),
   };
 }

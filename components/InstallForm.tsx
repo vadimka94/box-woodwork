@@ -10,6 +10,8 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
   const [open, setOpen] = useState(false);
   /* "other" = work with no project card: a pop-up job, or a standing site */
   const [kind, setKind] = useState<"project" | "other">("project");
+  /* 'prep' = driving out to prepare the site of a two-phase job, not to fit */
+  const [purpose, setPurpose] = useState<"install" | "prep">("install");
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const ref = useRef<HTMLFormElement>(null);
@@ -23,17 +25,31 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
   return (
     <form ref={ref} className="panel"
       action={(fd) => start(async () => {
-        try { await must(createInstallation(fd)); ref.current?.reset(); setOpen(false); setKind("project"); }
+        try {
+          await must(createInstallation(fd));
+          ref.current?.reset(); setOpen(false); setKind("project"); setPurpose("install");
+        }
         catch (e: any) { setErr(e.message); }
       })}>
       <input type="hidden" name="kind" value={kind} />
+      <input type="hidden" name="purpose" value={purpose} />
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <KindTab on={!other} onPick={() => { setKind("project"); setErr(null); }}
-          title="פרויקט" desc="התקנה של עבודה שיש לה כרטיס פרויקט" />
+          title="פרויקט" desc="עבודה שיש לה כרטיס פרויקט" />
         <KindTab on={other} onPick={() => { setKind("other"); setErr(null); }}
           title="אחר" desc="עבודה מזדמנת או אתר קבוע — בלי פרויקט" />
       </div>
+
+      {/* a two-phase job needs a trip out before anything can be measured */}
+      {!other && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <KindTab on={purpose === "install"} onPick={() => { setPurpose("install"); setErr(null); }}
+            title="התקנה" desc="יוצאים להתקין את העבודה המוגמרת" />
+          <KindTab on={purpose === "prep"} onPick={() => { setPurpose("prep"); setErr(null); }}
+            title="עבודת הכנה" desc="פירוק או תשתית בשטח — לפני המדידה" />
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
@@ -91,7 +107,9 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
 
       <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
         <button className="btn btn-primary" disabled={pending}>
-          {pending ? "שומר…" : other ? "קבע עבודה" : "קבע התקנה"}
+          {pending ? "שומר…"
+            : other ? "קבע עבודה"
+            : purpose === "prep" ? "קבע יציאה" : "קבע התקנה"}
         </button>
         <button type="button" className="btn" onClick={() => setOpen(false)}>ביטול</button>
       </div>
@@ -154,7 +172,9 @@ function CrewChip({ installationId, profile, on }: { installationId: string; pro
 
 
 /** Closing out an installation, or calling it off. */
-export function InstallStatus({ installationId, status }: { installationId: string; status: string }) {
+export function InstallStatus({ installationId, status, purpose = "install" }:
+  { installationId: string; status: string; purpose?: string }) {
+  const prep = purpose === "prep";
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const go = (s: "planned" | "done" | "cancelled") =>
@@ -163,11 +183,19 @@ export function InstallStatus({ installationId, status }: { installationId: stri
   return (
     <>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {status !== "done" && <button className="btn btn-go" disabled={pending} onClick={() => go("done")}>ההתקנה בוצעה ✓</button>}
+        {status !== "done" && <button className="btn btn-go" disabled={pending} onClick={() => go("done")}>
+          {prep ? "עבודת ההכנה בוצעה ✓" : "ההתקנה בוצעה ✓"}</button>}
         {status === "done" && <button className="btn" disabled={pending} onClick={() => go("planned")}>החזר למתוכננת</button>}
         <button className="btn btn-stop" disabled={pending}
-          onClick={() => { if (confirm("לבטל את ההתקנה?")) go("cancelled"); }}>בטל התקנה</button>
+          onClick={() => { if (confirm(prep ? "לבטל את היציאה?" : "לבטל את ההתקנה?")) go("cancelled"); }}>
+          {prep ? "בטל יציאה" : "בטל התקנה"}</button>
       </div>
+      {prep && (
+        <div style={{ marginTop: 10, fontSize: 12, color: "var(--steel)", lineHeight: 1.7 }}>
+          זה סגירת היום ביומן. כדי לשחרר את המדידה והייצור, צריך לסמן
+          גם את שלב "עבודת הכנה בשטח" בכרטיס הפרויקט.
+        </div>
+      )}
       {err && <div style={{ color: "#B03B2C", fontSize: 13, marginTop: 8 }}>{err}</div>}
     </>
   );

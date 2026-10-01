@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { currentUser } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { getProject } from "@/lib/queries";
+import { getPrepVisit } from "@/lib/schedule";
 import { leadForProject } from "@/lib/crm";
 import { StageRail } from "@/components/StageRail";
 import { StageActions } from "@/components/StageActions";
@@ -10,6 +11,7 @@ import { ApprovePanel } from "@/components/ApprovePanel";
 import { AddItem, DeleteItem, MorePhotos } from "@/components/ItemManager";
 import { ProjectAdmin } from "@/components/ProjectAdmin";
 import { ProjectDetails } from "@/components/ProjectDetails";
+import { PrepPanel } from "@/components/PrepPanel";
 import { MaterialPanel } from "@/components/MaterialPanel";
 import { DeliverPanel } from "@/components/DeliverPanel";
 import { Bilingual } from "@/components/Bilingual";
@@ -28,13 +30,25 @@ export default async function ProjectPage({ params }: { params: Promise<{ code: 
   /* the sales card this project came from — admins only */
   const lead = me.role === "admin" ? await leadForProject(project.id).catch(() => null) : null;
   const isContractor = project.kind === "contractor";
-  const projectStages = (project.stages ?? []).sort((a, b) => a.seq - b.seq);
-  const plansReady = projectStages.length > 0 && projectStages.every((s) => s.status === "done");
+  const allProjectStages = (project.stages ?? []).sort((a, b) => a.seq - b.seq);
+  /* seq 0 is the preparatory site work of a two-phase job. It belongs in its
+     own panel, above everything — see supabase/migrations/018_prep_phase.sql */
+  const prepStage = allProjectStages.find((s) => s.seq === 0) ?? null;
+  const projectStages = allProjectStages.filter((s) => s.seq > 0);
+  const plansReady = allProjectStages.length > 0 && allProjectStages.every((s) => s.status === "done");
+
+  /* the prep trip, and the people who could be sent on it */
+  const [prepVisit, { data: crewProfiles }] = await Promise.all([
+    project.prep_required ? getPrepVisit(project.id) : Promise.resolve(null),
+    me.role === "admin"
+      ? (await createClient()).from("profiles").select("id, full_name, role").eq("active", true)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
   /* a contractor job has no installation, so the release gate sits one stage later */
   const releaseSeq = isContractor ? 11 : 9;
 
   /* the last button on the job: "נמסר" for a private client, "נאסף" for a contractor */
-  const allStages = [...projectStages, ...(project.items ?? []).flatMap((i) => i.stages ?? [])];
+  const allStages = [...allProjectStages, ...(project.items ?? []).flatMap((i) => i.stages ?? [])];
   const stagesLeft = allStages.filter((s) => s.status !== "done").length;
   /* an archived job already says so in the header — the panel is for live ones */
   const showDeliver = !isDraft && project.status === "active";
@@ -82,6 +96,15 @@ export default async function ProjectPage({ params }: { params: Promise<{ code: 
           תוכניות מאושרות {project.current_rev ? `· ${project.current_rev}` : ""}
         </Link>
       )}
+
+      <PrepPanel project={project} prepVisit={prepVisit}
+        profiles={crewProfiles ?? []} isAdmin={me.role === "admin"}>
+        {!isDraft && prepStage && (
+          <div style={{ marginTop: 14 }}>
+            <StageLine stage={prepStage} project={project} item={null} lang={lang} me={me} />
+          </div>
+        )}
+      </PrepPanel>
 
       {isDraft && (
         <ApprovePanel

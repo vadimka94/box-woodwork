@@ -4,6 +4,8 @@ export type Install = {
   id: string; project_id: string | null; title: string | null;
   scheduled_date: string; start_time: string | null;
   address: string | null; note: string | null; status: "planned" | "done" | "cancelled";
+  /* 'prep' = the preparatory site visit of a two-phase job, not a fitting */
+  purpose?: "install" | "prep";
   project?: any; crew?: { id: string; full_name: string }[];
 };
 
@@ -17,6 +19,13 @@ export const jobTitle = (i: any) => i?.project?.name ?? i?.title ?? "עבודה 
 
 /** The short mono tag: a project code, or the word "אחר". */
 export const jobCode = (i: any) => i?.project?.code ?? "אחר";
+
+/** Driving out to prepare the site, not to fit the finished work. */
+export const isPrepJob = (i: any) => i?.purpose === "prep";
+
+/** What this trip is for, in one word. */
+export const jobPurpose = (i: any) =>
+  isPrepJob(i) ? "עבודת הכנה בשטח" : "התקנה אצל הלקוח";
 
 /** Where the van is going. */
 export const jobWhere = (i: any) => i?.address || i?.project?.city || "";
@@ -85,6 +94,16 @@ export async function getInstallation(id: string) {
       .filter(Boolean) as { id: string; full_name: string; title: string[] }[],
     allProfiles: profiles ?? [],
   };
+}
+
+/** The prep visit booked for a project, if there is one. */
+export async function getPrepVisit(projectId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("installations").select("*")
+    .eq("project_id", projectId).eq("purpose", "prep").neq("status", "cancelled")
+    .order("scheduled_date").limit(1).maybeSingle();
+  return data ?? null;
 }
 
 export const isoDay = (d: Date) =>

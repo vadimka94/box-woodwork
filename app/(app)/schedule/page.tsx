@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { currentUser, createClient } from "@/lib/supabase/server";
-import { getInstallations, monthGrid, isoDay, months, days, isOtherJob, jobTitle, jobWhere } from "@/lib/schedule";
+import { getInstallations, monthGrid, isoDay, months, days, isOtherJob, isPrepJob, jobTitle, jobWhere } from "@/lib/schedule";
 import { t, type Lang } from "@/lib/i18n";
 import { NewInstallation, InstallCrew } from "@/components/InstallForm";
 
@@ -91,7 +91,7 @@ export default async function SchedulePage({
                       {i.start_time ? i.start_time.slice(0, 5) + " · " : ""}{jobTitle(i)}
                     </div>
                     <div className="mono" style={{ fontSize: 10, color: "var(--steel)", marginTop: 3 }}>
-                      {isOtherJob(i) ? "אחר · " : ""}{jobWhere(i)}
+                      {isPrepJob(i) ? "הכנה · " : isOtherJob(i) ? "אחר · " : ""}{jobWhere(i)}
                       {" · "}{i.crew?.map((c) => c.full_name).join(", ") || t("טרם שויך צוות", lang)}
                     </div>
                   </div>
@@ -121,6 +121,7 @@ export default async function SchedulePage({
               </div>
               <div style={{ fontFamily: "var(--display)", fontSize: 20, margin: "8px 0 4px" }}>
                 {jobTitle(i)}
+                {isPrepJob(i) && <span className="chip gold" style={{ marginInlineStart: 10 }}>עבודת הכנה</span>}
                 {isOtherJob(i) && <span className="chip" style={{ marginInlineStart: 10 }}>אחר</span>}
               </div>
               <div style={{ fontSize: 13, color: "var(--steel)" }}>

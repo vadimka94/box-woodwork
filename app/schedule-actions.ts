@@ -19,6 +19,9 @@ async function createInstallationImpl(form: FormData) {
   const project_id = String(form.get("project_id") ?? "");
   const title = String(form.get("title") ?? "").trim();
   const scheduled_date = String(form.get("scheduled_date") ?? "");
+  /* a two-phase job needs a trip out before anything is measured — same
+     calendar, different kind of day (see migrations/018_prep_phase.sql) */
+  const purpose = String(form.get("purpose") ?? "install") === "prep" ? "prep" : "install";
 
   if (!scheduled_date) throw new Error("צריך תאריך");
   if (isOther && !title) throw new Error("צריך לכתוב במה מדובר");
@@ -27,6 +30,7 @@ async function createInstallationImpl(form: FormData) {
   const { data, error } = await supabase.from("installations").insert({
     project_id: isOther ? null : project_id,
     title: isOther ? title : null,
+    purpose: isOther ? "install" : purpose,
     scheduled_date,
     start_time: String(form.get("start_time") ?? "") || null,
     address: String(form.get("address") ?? "").trim() || null,
@@ -42,7 +46,9 @@ async function createInstallationImpl(form: FormData) {
   }
 
   await supabase.from("activity_log").insert({
-    actor: me.id, action: isOther ? "קבע עבודה אחרת" : "קבע התקנה",
+    actor: me.id,
+    action: isOther ? "קבע עבודה אחרת"
+          : purpose === "prep" ? "קבע נסיעה לעבודת הכנה" : "קבע התקנה",
     entity: "installation", entity_id: data.id,
     detail: isOther ? `${scheduled_date} · ${title}` : scheduled_date,
   });
