@@ -4,8 +4,10 @@ export type Install = {
   id: string; project_id: string | null; title: string | null;
   scheduled_date: string; start_time: string | null;
   address: string | null; note: string | null; status: "planned" | "done" | "cancelled";
-  /* 'prep' = the preparatory site visit of a two-phase job, not a fitting */
-  purpose?: "install" | "prep";
+  /* 'prep' = the preparatory site visit of a two-phase job, not a fitting.
+     'meeting' = a business meeting — a supplier at the office. Management
+     and the front desk only; see migrations/021_meetings.sql. */
+  purpose?: "install" | "prep" | "meeting";
   project?: any; crew?: { id: string; full_name: string }[];
 };
 
@@ -15,20 +17,28 @@ export type Install = {
 export const isOtherJob = (i: any) => !i?.project_id;
 
 /** What to call it on screen. */
-export const jobTitle = (i: any) => i?.project?.name ?? i?.title ?? "עבודה אחרת";
+export const jobTitle = (i: any) =>
+  i?.project?.name ?? i?.title ?? (isMeeting(i) ? "פגישה" : "עבודה אחרת");
 
-/** The short mono tag: a project code, or the word "אחר". */
-export const jobCode = (i: any) => i?.project?.code ?? "אחר";
+/** The short mono tag: a project code, or what kind of day this is. */
+export const jobCode = (i: any) =>
+  i?.project?.code ?? (isMeeting(i) ? "פגישה" : "אחר");
 
 /** Driving out to prepare the site, not to fit the finished work. */
 export const isPrepJob = (i: any) => i?.purpose === "prep";
 
-/** What this trip is for, in one word. */
-export const jobPurpose = (i: any) =>
-  isPrepJob(i) ? "עבודת הכנה בשטח" : "התקנה אצל הלקוח";
+/** A business meeting — a supplier, an accountant. Nobody drives anywhere. */
+export const isMeeting = (i: any) => i?.purpose === "meeting";
 
-/** Where the van is going. */
-export const jobWhere = (i: any) => i?.address || i?.project?.city || "";
+/** What this day is for, in one line. */
+export const jobPurpose = (i: any) =>
+  isMeeting(i) ? "פגישה עסקית"
+  : isPrepJob(i) ? "עבודת הכנה בשטח"
+  : "התקנה אצל הלקוח";
+
+/** Where the van is going. A meeting with no address is at the workshop. */
+export const jobWhere = (i: any) =>
+  i?.address || i?.project?.city || (isMeeting(i) ? "במשרד" : "");
 
 /** Installations in a window, with their crews. Used by the calendar, the
  *  floor screen and the carpenter's phone. */

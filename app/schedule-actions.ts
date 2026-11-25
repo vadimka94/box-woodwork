@@ -16,22 +16,27 @@ async function createInstallationImpl(form: FormData) {
   const me = await currentUser();
   if (!me || !isStaff(me.role)) throw new Error("רק מנהל או משרד יכולים לקבוע התקנה");
 
-  const isOther = String(form.get("kind") ?? "project") === "other";
+  const kind = String(form.get("kind") ?? "project");
+  /* a meeting is a day in the office, not a job: never tied to a project */
+  const isMeeting = kind === "meeting";
+  const isOther = kind === "other" || isMeeting;
   const project_id = String(form.get("project_id") ?? "");
   const title = String(form.get("title") ?? "").trim();
   const scheduled_date = String(form.get("scheduled_date") ?? "");
   /* a two-phase job needs a trip out before anything is measured — same
      calendar, different kind of day (see migrations/018_prep_phase.sql) */
-  const purpose = String(form.get("purpose") ?? "install") === "prep" ? "prep" : "install";
+  const purpose = isMeeting ? "meeting"
+    : String(form.get("purpose") ?? "install") === "prep" ? "prep" : "install";
 
   if (!scheduled_date) throw new Error("צריך תאריך");
-  if (isOther && !title) throw new Error("צריך לכתוב במה מדובר");
+  if (isMeeting && !title) throw new Error("צריך לכתוב עם מי הפגישה");
+  if (isOther && !isMeeting && !title) throw new Error("צריך לכתוב במה מדובר");
   if (!isOther && !project_id) throw new Error("צריך לבחור פרויקט");
 
   const { data, error } = await supabase.from("installations").insert({
     project_id: isOther ? null : project_id,
     title: isOther ? title : null,
-    purpose: isOther ? "install" : purpose,
+    purpose: kind === "other" ? "install" : purpose,
     scheduled_date,
     start_time: String(form.get("start_time") ?? "") || null,
     address: String(form.get("address") ?? "").trim() || null,
@@ -48,7 +53,8 @@ async function createInstallationImpl(form: FormData) {
 
   await supabase.from("activity_log").insert({
     actor: me.id,
-    action: isOther ? "קבע עבודה אחרת"
+    action: isMeeting ? "קבע פגישה"
+          : isOther ? "קבע עבודה אחרת"
           : purpose === "prep" ? "קבע נסיעה לעבודת הכנה" : "קבע התקנה",
     entity: "installation", entity_id: data.id,
     detail: isOther ? `${scheduled_date} · ${title}` : scheduled_date,

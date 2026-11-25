@@ -8,8 +8,9 @@ type P = { id: string; full_name: string; role: string };
 
 export function NewInstallation({ projects, profiles }: { projects: any[]; profiles: P[] }) {
   const [open, setOpen] = useState(false);
-  /* "other" = work with no project card: a pop-up job, or a standing site */
-  const [kind, setKind] = useState<"project" | "other">("project");
+  /* "other"   = work with no project card: a pop-up job, or a standing site
+     "meeting" = a supplier at the office. Management and front desk only. */
+  const [kind, setKind] = useState<"project" | "other" | "meeting">("project");
   /* 'prep' = driving out to prepare the site of a two-phase job, not to fit */
   const [purpose, setPurpose] = useState<"install" | "prep">("install");
   const [err, setErr] = useState<string | null>(null);
@@ -17,10 +18,12 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
   const ref = useRef<HTMLFormElement>(null);
 
   if (!open) {
-    return <button className="btn btn-primary" onClick={() => setOpen(true)}>+ קבע התקנה</button>;
+    return <button className="btn btn-primary" onClick={() => setOpen(true)}>+ קבע ביומן</button>;
   }
 
-  const other = kind === "other";
+  const meeting = kind === "meeting";
+  /* a meeting has no project card either — same shape, different words */
+  const other = kind === "other" || meeting;
 
   return (
     <form ref={ref} className="panel"
@@ -35,10 +38,12 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
       <input type="hidden" name="purpose" value={purpose} />
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <KindTab on={!other} onPick={() => { setKind("project"); setErr(null); }}
+        <KindTab on={kind === "project"} onPick={() => { setKind("project"); setErr(null); }}
           title="פרויקט" desc="עבודה שיש לה כרטיס פרויקט" />
-        <KindTab on={other} onPick={() => { setKind("other"); setErr(null); }}
+        <KindTab on={kind === "other"} onPick={() => { setKind("other"); setErr(null); }}
           title="אחר" desc="עבודה מזדמנת או אתר קבוע — בלי פרויקט" />
+        <KindTab on={meeting} onPick={() => { setKind("meeting"); setErr(null); }}
+          title="פגישה" desc="ספק, רואה חשבון, לקוח במשרד" />
       </div>
 
       {/* a two-phase job needs a trip out before anything can be measured */}
@@ -55,8 +60,10 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
         <div>
           {other ? (
             <>
-              <label>במה מדובר</label>
-              <input name="title" required placeholder='למשל: קמ"ג דימונה — הרכבת ארונות'
+              <label>{meeting ? "עם מי הפגישה" : "במה מדובר"}</label>
+              <input name="title" required
+                placeholder={meeting ? "למשל: בלגן עצים — דוגמאות פורניר"
+                                     : 'למשל: קמ"ג דימונה — הרכבת ארונות'}
                 style={{ marginTop: 7 }} />
             </>
           ) : (
@@ -76,23 +83,26 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
           <input name="scheduled_date" type="date" required style={{ marginTop: 7 }} />
         </div>
         <div>
-          <label>שעת יציאה</label>
+          <label>{meeting ? "שעה" : "שעת יציאה"}</label>
           <input name="start_time" type="time" style={{ marginTop: 7 }} />
         </div>
         <div>
-          <label>כתובת האתר</label>
-          <input name="address" required={other}
-            placeholder={other ? "לאן נוסעים" : "אם שונה מכתובת הלקוח"} style={{ marginTop: 7 }} />
+          <label>{meeting ? "איפה" : "כתובת האתר"}</label>
+          <input name="address" required={other && !meeting}
+            placeholder={meeting ? "ריק = במשרד" : other ? "לאן נוסעים" : "אם שונה מכתובת הלקוח"}
+            style={{ marginTop: 7 }} />
         </div>
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <label>הערות לצוות</label>
-        <textarea name="note" rows={2} placeholder="חניה, קומה, מעלית, מי פותח…" style={{ marginTop: 7 }} />
+        <label>{meeting ? "נושאים לפגישה" : "הערות לצוות"}</label>
+        <textarea name="note" rows={2}
+          placeholder={meeting ? "מה צריך לסגור, מה להביא…" : "חניה, קומה, מעלית, מי פותח…"}
+          style={{ marginTop: 7 }} />
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <label>מי יוצא</label>
+        <label>{meeting ? "מי משתתף" : "מי יוצא"}</label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
           {profiles.map((p) => (
             <label key={p.id} className="chip" style={{ cursor: "pointer", padding: "9px 14px", fontSize: 12 }}>
@@ -108,6 +118,7 @@ export function NewInstallation({ projects, profiles }: { projects: any[]; profi
       <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "שומר…"
+            : meeting ? "קבע פגישה"
             : other ? "קבע עבודה"
             : purpose === "prep" ? "קבע יציאה" : "קבע התקנה"}
         </button>
@@ -175,6 +186,7 @@ function CrewChip({ installationId, profile, on }: { installationId: string; pro
 export function InstallStatus({ installationId, status, purpose = "install" }:
   { installationId: string; status: string; purpose?: string }) {
   const prep = purpose === "prep";
+  const meeting = purpose === "meeting";
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const go = (s: "planned" | "done" | "cancelled") =>
@@ -184,11 +196,11 @@ export function InstallStatus({ installationId, status, purpose = "install" }:
     <>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {status !== "done" && <button className="btn btn-go" disabled={pending} onClick={() => go("done")}>
-          {prep ? "עבודת ההכנה בוצעה ✓" : "ההתקנה בוצעה ✓"}</button>}
+          {meeting ? "הפגישה התקיימה ✓" : prep ? "עבודת ההכנה בוצעה ✓" : "ההתקנה בוצעה ✓"}</button>}
         {status === "done" && <button className="btn" disabled={pending} onClick={() => go("planned")}>החזר למתוכננת</button>}
         <button className="btn btn-stop" disabled={pending}
-          onClick={() => { if (confirm(prep ? "לבטל את היציאה?" : "לבטל את ההתקנה?")) go("cancelled"); }}>
-          {prep ? "בטל יציאה" : "בטל התקנה"}</button>
+          onClick={() => { if (confirm(meeting ? "לבטל את הפגישה?" : prep ? "לבטל את היציאה?" : "לבטל את ההתקנה?")) go("cancelled"); }}>
+          {meeting ? "בטל פגישה" : prep ? "בטל יציאה" : "בטל התקנה"}</button>
       </div>
       {prep && (
         <div style={{ marginTop: 10, fontSize: 12, color: "var(--steel)", lineHeight: 1.7 }}>

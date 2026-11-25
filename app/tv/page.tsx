@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
 import { floorBoard, openBlocks, pendingGates } from "@/lib/queries";
-import { getInstallations, isoDay, HE_DAYS, jobCode, jobTitle, isOtherJob } from "@/lib/schedule";
+import { getInstallations, isoDay, HE_DAYS, jobCode, jobTitle, isOtherJob, isMeeting } from "@/lib/schedule";
 import { getExtras } from "@/lib/extras";
 import { ROUTE_LABEL, SOURCE_LABEL } from "@/lib/extra-labels";
 import { Realtime } from "@/components/Realtime";
@@ -40,7 +40,10 @@ export default async function TvPage() {
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today); d.setDate(today.getDate() + i);
     const iso = isoDay(d);
-    return { d, iso, jobs: installs.filter((x: any) => x.scheduled_date === iso) };
+    /* a business meeting is management's diary, not the factory's.
+       RLS already hides it from the screen user; this is the second lock,
+       for when an admin opens /tv on their own account. */
+    return { d, iso, jobs: installs.filter((x: any) => x.scheduled_date === iso && !isMeeting(x)) };
   });
 
   const waiting = [
