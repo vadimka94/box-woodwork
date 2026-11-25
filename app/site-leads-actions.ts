@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { safe } from "@/lib/action-result";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { waNumber } from "@/lib/crm-labels";
+import { isStaff } from "@/lib/types";
 
 /*
  * פנייה שהגיעה מהטופס באתר נוחתת ב-site_leads ולא בצינור המכירות, כי טופס
@@ -13,11 +14,11 @@ import { waNumber } from "@/lib/crm-labels";
  * שתמיד אפשר יהיה לראות מה באמת הגיע ומה סוננן.
  */
 
-async function admin() {
+async function staff() {
   const supabase = await createClient();
   const me = await currentUser();
   if (!me) throw new Error("לא מחובר — התחבר מחדש");
-  if (me.role !== "admin") throw new Error("רק ואדים או מקס יכולים לטפל בפניות");
+  if (!isStaff(me.role)) throw new Error("רק מנהל או משרד יכולים לטפל בפניות");
   return { supabase, me };
 }
 
@@ -36,7 +37,7 @@ async function customerByPhone(supabase: any, phone: string | null) {
 }
 
 async function approveImpl(id: string) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
 
   const { data: sl, error: readErr } = await supabase
     .from("site_leads").select("*").eq("id", id).maybeSingle();
@@ -96,7 +97,7 @@ async function approveImpl(id: string) {
 }
 
 async function spamImpl(id: string) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const { error } = await supabase.from("site_leads").update({
     status: "spam",
     handled_at: new Date().toISOString(),

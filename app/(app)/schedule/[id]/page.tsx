@@ -5,6 +5,7 @@ import { getInstallation, days, isOtherJob, isPrepJob, jobTitle, jobPurpose, job
 import { t as tr, type Lang } from "@/lib/i18n";
 import { both, toRussian } from "@/lib/tv-text";
 import { InstallCrew, InstallStatus } from "@/components/InstallForm";
+import { isStaff } from "@/lib/types";
 
 /** Everything the crew needs before they get in the van. */
 export default async function InstallPage({ params }: { params: Promise<{ id: string }> }) {
@@ -133,13 +134,13 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
 
       <div className="panel" style={{ marginTop: 16 }}>
         <h4 className="mono">{t("מי יוצא", lang)}</h4>
-        {me.role === "admin"
+        {isStaff(me.role)
           ? <InstallCrew installationId={install.id} profiles={install.allProfiles as any}
                          current={install.crew.map((c) => c.id)} />
           : <div style={{ fontSize: 15 }}>{install.crew.map((c) => c.full_name).join(" · ") || t("טרם שויך צוות", lang)}</div>}
       </div>
 
-      {me.role === "admin" && (
+      {isStaff(me.role) && (
         <div style={{ marginTop: 16 }}>
           <InstallStatus installationId={install.id} status={install.status}
                          purpose={install.purpose ?? "install"} />

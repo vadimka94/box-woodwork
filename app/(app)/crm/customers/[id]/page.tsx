@@ -8,11 +8,12 @@ import {
 import { CustomerForm, QuickAdd, MergePanel } from "@/components/Crm";
 import { CrmTabs } from "@/components/CrmTabs";
 import { Realtime } from "@/components/Realtime";
+import { isStaff } from "@/lib/types";
 
 /** The customer card: who they are and everything they ever ordered. */
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const me = await currentUser();
-  if (!me || me.role !== "admin") redirect("/tasks");
+  if (!me || !isStaff(me.role)) redirect("/tasks");
   const { id } = await params;
   const c = await getCustomer(id);
   if (!c) notFound();

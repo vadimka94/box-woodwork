@@ -17,6 +17,8 @@ const since = (iso: string) => {
 export default async function Dashboard() {
   const me = (await currentUser())!;
   if (me.role === "display") redirect("/tv");
+  /* למשרד אין משימות ייצור — הבית שלו הוא צינור המכירות */
+  if (me.role === "office") redirect("/crm");
   if (me.role !== "admin") redirect("/tasks");
 
   const [projects, blocks, gates, crm, handedOver] = await Promise.all([

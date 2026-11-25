@@ -8,6 +8,7 @@ import {
 import { QuickAdd } from "@/components/Crm";
 import { Realtime } from "@/components/Realtime";
 import { CrmTabs } from "@/components/CrmTabs";
+import { isStaff } from "@/lib/types";
 
 /* column titles cover both private clients and contractors */
 const BOARD_LABEL: Record<string, string> = {
@@ -18,7 +19,7 @@ const BOARD_LABEL: Record<string, string> = {
 /** The sales board: every WhatsApp enquiry, from first message to deposit. */
 export default async function CrmPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   const me = await currentUser();
-  if (!me || me.role !== "admin") redirect("/tasks");
+  if (!me || !isStaff(me.role)) redirect("/tasks");
   const { show } = await searchParams;
 
   const { leads, missingTables } = await getLeads();

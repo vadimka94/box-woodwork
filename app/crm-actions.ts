@@ -10,12 +10,21 @@ import { createClient, currentUser } from "@/lib/supabase/server";
  * reaches the screen as-is.
  */
 import { STAGES, STYLE_LABEL, stageLabel, waNumber, type LeadStage } from "@/lib/crm-labels";
+import { isStaff } from "@/lib/types";
 
-async function admin() {
+async function staff() {
   const supabase = await createClient();
   const me = await currentUser();
   if (!me) throw new Error("לא מחובר — התחבר מחדש");
-  if (me.role !== "admin") throw new Error("רק ואדים או מקס יכולים לעבוד על לקוחות");
+  if (!isStaff(me.role)) throw new Error("רק מנהל או משרד יכולים לעבוד על לקוחות");
+  return { supabase, me };
+}
+
+/* ביטול סגירת עסקה מוחק את טיוטת הפרויקט. זו הפעולה היחידה בקובץ הזה
+   שמוחקת משהו, ולכן היא נשארת אצל מנהל בלבד. */
+async function adminOnly() {
+  const { supabase, me } = await staff();
+  if (me.role !== "admin") throw new Error("רק ואדים או מקס יכולים לבטל סגירת עסקה");
   return { supabase, me };
 }
 
@@ -68,7 +77,7 @@ async function customerByPhone(supabase: any, phone: string | null) {
 
 /** Live check while typing a phone number in "פנייה חדשה". */
 async function findCustomerImpl(phone: string) {
-  const { supabase } = await admin();
+  const { supabase } = await staff();
   if ((waNumber(phone) ?? "").length < 11) return null;
   const c = await customerByPhone(supabase, phone);
   if (!c) return null;
@@ -92,7 +101,7 @@ async function findCustomerImpl(phone: string) {
  * - otherwise a matching phone number still lands on the existing card.
  */
 async function addLeadImpl(fd: FormData): Promise<{ id: string }> {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
 
   const phone = str(fd, "phone");
   const kind = str(fd, "kind") === "contractor" ? "contractor" : "private";
@@ -143,7 +152,7 @@ async function addLeadImpl(fd: FormData): Promise<{ id: string }> {
 
 /** Customer details: name, phone, address, source. */
 async function updateCustomerImpl(customerId: string, fd: FormData) {
-  const { supabase } = await admin();
+  const { supabase } = await staff();
   const name = str(fd, "name");
   if (!name) throw new Error("צריך שם");
   const { error } = await supabase.from("customers").update({
@@ -160,7 +169,7 @@ async function updateCustomerImpl(customerId: string, fd: FormData) {
 
 /** The deal itself: what they want, price range, visit, final price, style. */
 async function updateLeadImpl(leadId: string, fd: FormData) {
-  const { supabase } = await admin();
+  const { supabase } = await staff();
 
   const patch: Record<string, unknown> = {};
   const text = ["title", "request", "models", "meeting_address", "contract_mode", "style"];
@@ -212,7 +221,7 @@ const STAGE_NEEDS: Record<string, { hard?: (l: any) => boolean; soft?: (l: any) 
 };
 
 async function setStageImpl(leadId: string, stage: LeadStage, force = false) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const { data: lead } = await supabase
     .from("leads")
     .select("kind, stage, meeting_at, final_price, estimate_min, estimate_max")
@@ -249,7 +258,7 @@ async function setStageImpl(leadId: string, stage: LeadStage, force = false) {
 }
 
 async function addNoteImpl(leadId: string, fd: FormData) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const note = str(fd, "note");
   const kind = ["note", "call", "whatsapp", "meeting"].includes(String(fd.get("kind"))) ? String(fd.get("kind")) : "note";
   if (!note) throw new Error("ההערה ריקה");
@@ -276,7 +285,7 @@ async function addNoteImpl(leadId: string, fd: FormData) {
 }
 
 async function uploadLeadFilesImpl(leadId: string, fd: FormData) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const kind = String(fd.get("kind") ?? "other");
   const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) throw new Error("לא נבחר קובץ");
@@ -294,7 +303,7 @@ async function uploadLeadFilesImpl(leadId: string, fd: FormData) {
 }
 
 async function markLostImpl(leadId: string, fd: FormData) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const reason = str(fd, "lost_reason");
   if (!reason) throw new Error("בחר סיבה");
   const { error } = await supabase.from("leads").update({
@@ -308,7 +317,7 @@ async function markLostImpl(leadId: string, fd: FormData) {
 
 /** "Still alive" — push it a week out and keep it in the decision list. */
 async function snoozeLeadImpl(leadId: string, days = 7) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const { data: lead } = await supabase.from("leads").select("stage").eq("id", leadId).single();
   if (!lead) throw new Error("הפנייה לא נמצאה");
   if (lead.stage === "won" || lead.stage === "lost") throw new Error("העסקה כבר סגורה");
@@ -322,7 +331,7 @@ async function snoozeLeadImpl(leadId: string, days = 7) {
 
 /** "Stopped answering" — close it with the reason already filled in. */
 async function giveUpLeadImpl(leadId: string) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const { error } = await supabase.from("leads").update({
     stage: "lost", lost_reason: "no_reply",
     lost_note: "לא ענה אחרי שלוש פניות",
@@ -335,7 +344,7 @@ async function giveUpLeadImpl(leadId: string) {
 }
 
 async function reopenLeadImpl(leadId: string) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   const { error } = await supabase.from("leads").update({
     stage: "new", lost_reason: null, lost_note: null, stage_changed_at: new Date().toISOString(),
   }).eq("id", leadId).eq("stage", "lost");
@@ -361,7 +370,7 @@ async function nextCode(supabase: any) {
  * The price stays in the CRM: production notes are read by the whole floor.
  */
 async function markWonImpl(leadId: string, fd: FormData): Promise<{ code: string }> {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
 
   const { data: lead } = await supabase
     .from("leads").select("*, customer:customers(*)").eq("id", leadId).single();
@@ -428,7 +437,7 @@ async function markWonImpl(leadId: string, fd: FormData): Promise<{ code: string
  * (or was already deleted) — once items exist, real work hangs off it.
  */
 async function undoWonImpl(leadId: string) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await adminOnly();
   const { data: lead } = await supabase.from("leads").select("stage, project_id").eq("id", leadId).single();
   if (!lead || lead.stage !== "won") throw new Error("העסקה לא במצב סגור");
 
@@ -463,7 +472,7 @@ async function undoWonImpl(leadId: string) {
  * empty fields on it are filled from the other; notes are joined.
  */
 async function mergeCustomersImpl(keepId: string, dropId: string) {
-  const { supabase, me } = await admin();
+  const { supabase, me } = await staff();
   if (!keepId || !dropId || keepId === dropId) throw new Error("צריך לבחור שני לקוחות שונים");
 
   const { data: both } = await supabase.from("customers").select("*").in("id", [keepId, dropId]);

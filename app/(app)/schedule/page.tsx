@@ -3,6 +3,7 @@ import { currentUser, createClient } from "@/lib/supabase/server";
 import { getInstallations, monthGrid, isoDay, months, days, isOtherJob, isPrepJob, jobTitle, jobWhere } from "@/lib/schedule";
 import { t, type Lang } from "@/lib/i18n";
 import { NewInstallation, InstallCrew } from "@/components/InstallForm";
+import { isStaff } from "@/lib/types";
 
 export default async function SchedulePage({
   searchParams,
@@ -17,7 +18,7 @@ export default async function SchedulePage({
   const grid = monthGrid(year, month);
   const installs = await getInstallations(
     isoDay(grid[0]), isoDay(grid[grid.length - 1]),
-    me.role === "admin" ? undefined : me.id
+    isStaff(me.role) ? undefined : me.id
   );
 
   const supabase = await createClient();
@@ -44,7 +45,7 @@ export default async function SchedulePage({
         </div>
       </div>
 
-      {me.role === "admin" && (
+      {isStaff(me.role) && (
         <div style={{ marginTop: 20 }}>
           <NewInstallation projects={projects ?? []} profiles={profiles ?? []} />
         </div>
@@ -103,7 +104,7 @@ export default async function SchedulePage({
       </div>
 
       <div className="mono" style={{ margin: "26px 0 12px", fontSize: 13, color: "var(--steel)", letterSpacing: ".12em" }}>
-        {t(me.role === "admin" ? "כל ההתקנות בחודש" : "ההתקנות שלך", lang)}
+        {t(isStaff(me.role) ? "כל ההתקנות בחודש" : "ההתקנות שלך", lang)}
       </div>
 
       {installs.length === 0 && (

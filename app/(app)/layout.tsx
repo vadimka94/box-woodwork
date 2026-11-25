@@ -8,11 +8,11 @@ import { BackToTv } from "@/components/BackToTv";
 
 const NAV = [
   { href: "/",         label: "לוח בקרה",    roles: ["admin"] },
-  { href: "/crm",      label: "לקוחות ומכירות", roles: ["admin"] },
+  { href: "/crm",      label: "לקוחות ומכירות", roles: ["admin", "office"] },
   { href: "/tasks",    label: "המשימות שלי", roles: ["admin", "cnc", "worker"] },
-  { href: "/projects", label: "פרויקטים",    roles: ["admin", "cnc", "worker"] },
-  { href: "/schedule", label: "לוח התקנות",  roles: ["admin", "cnc", "worker"] },
-  { href: "/extras",   label: "חוסרים ותוספות", roles: ["admin", "cnc", "worker"] },
+  { href: "/projects", label: "פרויקטים",    roles: ["admin", "cnc", "worker", "office"] },
+  { href: "/schedule", label: "לוח התקנות",  roles: ["admin", "cnc", "worker", "office"] },
+  { href: "/extras",   label: "חוסרים ותוספות", roles: ["admin", "cnc", "worker", "office"] },
   { href: "/team",     label: "עובדים",      roles: ["admin"] },
   { href: "/rules",    label: "הגדרות שיוך", roles: ["admin"] },
   { href: "/usage",    label: "מעקב שימוש",  roles: ["admin"] },

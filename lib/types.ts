@@ -1,4 +1,8 @@
-export type Role = "admin" | "cnc" | "worker" | "display";
+export type Role = "admin" | "cnc" | "worker" | "display" | "office";
+
+/* מנהל או משרד — מי שעובד מול לקוחות.
+   מקביל ל-is_staff() בדאטהבייס; שניהם חייבים להישאר זהים. */
+export const isStaff = (role: Role) => role === "admin" || role === "office";
 export type StageStatus = "idle" | "work" | "done" | "stop";
 export type BlockReason =
   | "missing_hardware" | "missing_material" | "missing_details"

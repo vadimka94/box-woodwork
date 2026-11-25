@@ -4,11 +4,12 @@ import { currentUser } from "@/lib/supabase/server";
 import { getCustomers, KIND_LABEL, money, fmtDate } from "@/lib/crm";
 import { Realtime } from "@/components/Realtime";
 import { CrmTabs } from "@/components/CrmTabs";
+import { isStaff } from "@/lib/types";
 
 /** Everyone who ever contacted the shop, newest activity first. */
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; kind?: string }> }) {
   const me = await currentUser();
-  if (!me || me.role !== "admin") redirect("/tasks");
+  if (!me || !isStaff(me.role)) redirect("/tasks");
   const { q = "", kind = "" } = await searchParams;
 
   const all = await getCustomers(q);

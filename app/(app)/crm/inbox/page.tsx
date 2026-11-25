@@ -4,6 +4,7 @@ import { CrmTabs } from "@/components/CrmTabs";
 import { SiteLeads } from "@/components/SiteLeads";
 import { Realtime } from "@/components/Realtime";
 import { fmtDateTime } from "@/lib/crm";
+import { isStaff } from "@/lib/types";
 
 /**
  * פניות שהגיעו מהטופס באתר וממתינות להכרעה.
@@ -13,7 +14,7 @@ import { fmtDateTime } from "@/lib/crm";
  */
 export default async function SiteLeadsInbox() {
   const me = await currentUser();
-  if (!me || me.role !== "admin") redirect("/tasks");
+  if (!me || !isStaff(me.role)) redirect("/tasks");
 
   const supabase = await createClient();
   const { data, error } = await supabase

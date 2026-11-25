@@ -6,6 +6,7 @@ import { t as tr, type Lang } from "@/lib/i18n";
 import { both, toRussian } from "@/lib/tv-text";
 import { ExtraForm, ExtraActions, RoutePicker } from "@/components/ExtraForm";
 import { Bilingual } from "@/components/Bilingual";
+import { isStaff } from "@/lib/types";
 
 /** Everything the shop still owes on jobs that already left the building. */
 export default async function ExtrasPage() {
@@ -23,10 +24,10 @@ export default async function ExtrasPage() {
 
   const t = tr;
   /* Workers see their own items plus every "כללי" item nobody has taken yet. */
-  const extras = await getExtras(me.role === "admin" ? {} : { forProfile: me.id, includeGeneral: true });
+  const extras = await getExtras(isStaff(me.role) ? {} : { forProfile: me.id, includeGeneral: true });
   const open = extras.filter((e: any) => e.status === "open" || e.status === "work");
   const closed = extras.filter((e: any) =>
-    (e.status === "done" || e.status === "cancelled") && (me.role === "admin" || e.assigned_to === me.id));
+    (e.status === "done" || e.status === "cancelled") && (isStaff(me.role) || e.assigned_to === me.id));
 
   return (
     <>

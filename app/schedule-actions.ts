@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { safe } from "@/lib/action-result";
 import { createClient, currentUser } from "@/lib/supabase/server";
+import { isStaff } from "@/lib/types";
 
 /**
  * Books a job on the calendar: a date, who is driving out, and what it is —
@@ -13,7 +14,7 @@ import { createClient, currentUser } from "@/lib/supabase/server";
 async function createInstallationImpl(form: FormData) {
   const supabase = await createClient();
   const me = await currentUser();
-  if (!me || me.role !== "admin") throw new Error("רק ואדים או מקס יכולים לקבוע התקנה");
+  if (!me || !isStaff(me.role)) throw new Error("רק מנהל או משרד יכולים לקבוע התקנה");
 
   const isOther = String(form.get("kind") ?? "project") === "other";
   const project_id = String(form.get("project_id") ?? "");
@@ -59,7 +60,7 @@ async function createInstallationImpl(form: FormData) {
 async function setInstallCrewImpl(installationId: string, profileId: string, on: boolean) {
   const supabase = await createClient();
   const me = await currentUser();
-  if (!me || me.role !== "admin") throw new Error("רק מנהל יכול לשנות צוות התקנה");
+  if (!me || !isStaff(me.role)) throw new Error("רק מנהל או משרד יכולים לשנות צוות התקנה");
 
   if (on) {
     await supabase.from("installation_crew")
@@ -74,7 +75,7 @@ async function setInstallCrewImpl(installationId: string, profileId: string, on:
 async function setInstallStatusImpl(installationId: string, status: "planned" | "done" | "cancelled") {
   const supabase = await createClient();
   const me = await currentUser();
-  if (!me || me.role !== "admin") throw new Error("רק מנהל יכול לעדכן התקנה");
+  if (!me || !isStaff(me.role)) throw new Error("רק מנהל או משרד יכולים לעדכן התקנה");
   await supabase.from("installations").update({ status }).eq("id", installationId);
   revalidatePath("/", "layout");
 }

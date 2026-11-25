@@ -9,10 +9,11 @@ import {
   StageBar, CustomerForm, DealForm, NoteForm, FileUpload, WonPanel, LostPanel, ReopenButton, UndoWonButton,
 } from "@/components/Crm";
 import { Realtime } from "@/components/Realtime";
+import { isStaff } from "@/lib/types";
 
 export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   const me = await currentUser();
-  if (!me || me.role !== "admin") redirect("/tasks");
+  if (!me || !isStaff(me.role)) redirect("/tasks");
   const { id } = await params;
   const lead = await getLead(id);
   if (!lead) notFound();
