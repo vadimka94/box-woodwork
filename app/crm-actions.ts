@@ -64,8 +64,60 @@ const nudge = (step: number) =>
 
 function done() {
   revalidatePath("/crm", "layout");
+  revalidatePath("/schedule", "layout");
   revalidatePath("/");
 }
+
+/* ---------- the home visit, mirrored onto the calendar ---------- */
+/*
+ * The sales card owns the customer meeting: leads.meeting_at is the single
+ * source of truth. The calendar row is a mirror, so that one diary holds
+ * every day — fittings, prep trips, supplier meetings and home visits.
+ * Nothing syncs back the other way; two owners of one date is how a diary
+ * stops being trusted. See migrations/022_lead_meetings.sql.
+ */
+async function syncLeadMeeting(supabase: any, leadId: string) {
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("id, stage, meeting_at, meeting_address, customer:customers(name, address, city)")
+    .eq("id", leadId).maybeSingle();
+  if (!lead) return;
+
+  /* no date, or the deal died — the day comes off the calendar */
+  if (!lead.meeting_at || lead.stage === "lost") {
+    await supabase.from("installations").delete().eq("lead_id", leadId);
+    return;
+  }
+
+  /* meeting_at is a UTC instant; the calendar holds a local date and time.
+     Converting with getHours() would be the server's timezone, not ours. */
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jerusalem",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date(lead.meeting_at)).map((p) => [p.type, p.value])
+  ) as Record<string, string>;
+
+  const row = {
+    lead_id: leadId,
+    project_id: null,
+    purpose: "meeting",
+    title: lead.customer?.name || "פגישה עם לקוח",
+    scheduled_date: `${parts.year}-${parts.month}-${parts.day}`,
+    start_time: `${parts.hour}:${parts.minute}`,
+    address: lead.meeting_address || lead.customer?.address || lead.customer?.city || null,
+    status: lead.stage === "meeting_done" ? "done" : "planned",
+  };
+
+  const { data: existing } = await supabase
+    .from("installations").select("id").eq("lead_id", leadId).maybeSingle();
+
+  if (existing) await supabase.from("installations").update(row).eq("id", existing.id);
+  else await supabase.from("installations").insert(row);
+}
+
+
 
 /** The customer who already owns this phone number, if any. */
 async function customerByPhone(supabase: any, phone: string | null) {
@@ -184,6 +236,7 @@ async function updateLeadImpl(leadId: string, fd: FormData) {
 
   const { error } = await supabase.from("leads").update(patch).eq("id", leadId);
   if (error) throw new Error(error.message);
+  if ("meeting_at" in patch || "meeting_address" in patch) await syncLeadMeeting(supabase, leadId);
   done();
 }
 
@@ -254,6 +307,7 @@ async function setStageImpl(leadId: string, stage: LeadStage, force = false) {
   if (error) throw new Error(error.message);
 
   await log(supabase, leadId, me.id, "stage", stageLabel(lead.kind, stage));
+  await syncLeadMeeting(supabase, leadId);
   done();
 }
 
@@ -312,6 +366,7 @@ async function markLostImpl(leadId: string, fd: FormData) {
   }).eq("id", leadId).neq("stage", "won");
   if (error) throw new Error(error.message);
   await log(supabase, leadId, me.id, "lost", str(fd, "lost_note"));
+  await syncLeadMeeting(supabase, leadId);
   done();
 }
 
@@ -350,6 +405,7 @@ async function reopenLeadImpl(leadId: string) {
   }).eq("id", leadId).eq("stage", "lost");
   if (error) throw new Error(error.message);
   await log(supabase, leadId, me.id, "reopen");
+  await syncLeadMeeting(supabase, leadId);
   done();
 }
 

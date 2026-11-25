@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { getInstallation, days, isOtherJob, isPrepJob, isMeeting, jobTitle, jobPurpose, jobWhere } from "@/lib/schedule";
+import { getInstallation, days, isOtherJob, isPrepJob, isMeeting, isLeadMeeting, jobTitle, jobPurpose, jobWhere } from "@/lib/schedule";
 import { t as tr, type Lang } from "@/lib/i18n";
 import { both, toRussian } from "@/lib/tv-text";
 import { InstallCrew, InstallStatus } from "@/components/InstallForm";
@@ -21,6 +21,8 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
   const prep = isPrepJob(install);
   /* a meeting is a day in the diary — no van, no items, no customer card */
   const meeting = isMeeting(install);
+  /* mirrored from a sales card: the lead owns the date, so nothing is edited here */
+  const fromLead = isLeadMeeting(install);
   const heading = jobTitle(install);
   const d = new Date(install.scheduled_date + "T00:00:00");
   const address = jobWhere(install);
@@ -47,7 +49,8 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
           <h1 style={{ marginBottom: 8 }}>{heading}</h1>
           <Ru text={ruName} size={22} />
           <div style={{ fontSize: 15, color: "var(--steel)" }}>
-            {meeting ? t("פגישה עסקית", lang)
+            {fromLead ? t("פגישה עם לקוח — מתוך כרטיס המכירה", lang)
+              : meeting ? t("פגישה עסקית", lang)
               : other ? t("עבודה אחרת — לא מתוך פרויקט", lang)
               : `${p?.code} · ${t(jobPurpose(install), lang)}`}
           </div>
@@ -144,10 +147,22 @@ export default async function InstallPage({ params }: { params: Promise<{ id: st
           : <div style={{ fontSize: 15 }}>{install.crew.map((c) => c.full_name).join(" · ") || t("טרם שויך צוות", lang)}</div>}
       </div>
 
-      {isStaff(me.role) && (
+      {isStaff(me.role) && !fromLead && (
         <div style={{ marginTop: 16 }}>
           <InstallStatus installationId={install.id} status={install.status}
                          purpose={install.purpose ?? "install"} />
+        </div>
+      )}
+
+      {/* the sales card owns this day — moving it here would only drift */}
+      {isStaff(me.role) && fromLead && (
+        <div className="panel" style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 14, color: "var(--steel)", lineHeight: 1.7, marginBottom: 12 }}>
+            {t("הפגישה הזו נקבעה בכרטיס המכירה. שינוי תאריך, שעה או סימון שהתקיימה — נעשים שם, והיומן מתעדכן לבד.", lang)}
+          </div>
+          <Link className="btn btn-primary" href={`/crm/${install.lead_id}`} style={{ textDecoration: "none" }}>
+            {t("לכרטיס המכירה", lang)} →
+          </Link>
         </div>
       )}
     </>

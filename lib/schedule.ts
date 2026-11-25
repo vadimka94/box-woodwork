@@ -4,6 +4,8 @@ export type Install = {
   id: string; project_id: string | null; title: string | null;
   scheduled_date: string; start_time: string | null;
   address: string | null; note: string | null; status: "planned" | "done" | "cancelled";
+  /* set when the row mirrors a lead's meeting_at — owned by the sales card */
+  lead_id?: string | null;
   /* 'prep' = the preparatory site visit of a two-phase job, not a fitting.
      'meeting' = a business meeting — a supplier at the office. Management
      and the front desk only; see migrations/021_meetings.sql. */
@@ -30,6 +32,9 @@ export const isPrepJob = (i: any) => i?.purpose === "prep";
 /** A business meeting — a supplier, an accountant. Nobody drives anywhere. */
 export const isMeeting = (i: any) => i?.purpose === "meeting";
 
+/** A home visit that lives on a sales card. Read-only here; edit it there. */
+export const isLeadMeeting = (i: any) => !!i?.lead_id;
+
 /** What this day is for, in one line. */
 export const jobPurpose = (i: any) =>
   isMeeting(i) ? "פגישה עסקית"
@@ -38,7 +43,7 @@ export const jobPurpose = (i: any) =>
 
 /** Where the van is going. A meeting with no address is at the workshop. */
 export const jobWhere = (i: any) =>
-  i?.address || i?.project?.city || (isMeeting(i) ? "במשרד" : "");
+  i?.address || i?.project?.city || (isMeeting(i) && !isLeadMeeting(i) ? "במשרד" : "");
 
 /** Installations in a window, with their crews. Used by the calendar, the
  *  floor screen and the carpenter's phone. */
